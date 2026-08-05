@@ -5,6 +5,8 @@ struct TodayView: View {
     @State private var showingTaskEditor = false
     @State private var showingMeetingEditor = false
     @State private var showingBatchAdd = false
+    @State private var editingTask: TaskItem?
+    @State private var editingMeeting: MeetingItem?
 
     private var todayTasks: [TaskItem] { store.tasks(on: Date()) }
     private var todayMeetings: [MeetingItem] { store.meetings(on: Date()) }
@@ -28,11 +30,11 @@ struct TodayView: View {
             .yiRiPage()
         }
         .sheet(isPresented: $showingTaskEditor) {
-            TaskEditorSheet(defaultDate: Date())
+            TaskEditorSheet(defaultDate: Date(), task: editingTask)
                 .environmentObject(store)
         }
         .sheet(isPresented: $showingMeetingEditor) {
-            MeetingEditorSheet(defaultDate: Date())
+            MeetingEditorSheet(defaultDate: Date(), meeting: editingMeeting)
                 .environmentObject(store)
         }
         .sheet(isPresented: $showingBatchAdd) {
@@ -42,26 +44,43 @@ struct TodayView: View {
     }
 
     private var pageHeader: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(DateFormatter.yiRiDay.string(from: Date()))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("早上好，今天想完成什么？")
-                    .font(.system(size: 28, weight: .medium))
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(DateFormatter.yiRiDay.string(from: context.date))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(greeting(for: context.date))
+                        .font(.system(size: 28, weight: .medium))
+                }
+                Spacer()
+                Button {
+                    showingBatchAdd = true
+                } label: {
+                    Label("批量补录", systemImage: "calendar.badge.plus")
+                }
+                Button {
+                    editingTask = nil
+                    showingTaskEditor = true
+                } label: {
+                    Label("添加任务", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
             }
-            Spacer()
-            Button {
-                showingBatchAdd = true
-            } label: {
-                Label("批量补录", systemImage: "calendar.badge.plus")
-            }
-            Button {
-                showingTaskEditor = true
-            } label: {
-                Label("添加任务", systemImage: "plus")
-            }
-            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private func greeting(for date: Date) -> String {
+        let hour = Calendar.current.component(.hour, from: date)
+        switch hour {
+        case 5..<12:
+            return "早上好，先制定今天的计划吧"
+        case 12..<18:
+            return "下午好，继续为今天的目标加油"
+        case 18..<24:
+            return "晚上好，记得完成今天的复盘"
+        default:
+            return "夜深了，记录一下就早点休息吧"
         }
     }
 
@@ -82,7 +101,10 @@ struct TodayView: View {
                 } else {
                     VStack(spacing: 0) {
                         ForEach(todayTasks) { task in
-                            TodayTaskRow(task: task)
+                            TodayTaskRow(task: task) {
+                                editingTask = task
+                                showingTaskEditor = true
+                            }
                             if task.id != todayTasks.last?.id { Divider() }
                         }
                     }
@@ -98,6 +120,7 @@ struct TodayView: View {
                     SectionHeader(title: "日程", subtitle: "\(todayMeetings.count) 场会议 · 手动录入")
                     Spacer()
                     Button {
+                        editingMeeting = nil
                         showingMeetingEditor = true
                     } label: {
                         Image(systemName: "plus")
@@ -129,6 +152,16 @@ struct TodayView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(YiRiTheme.accentSoft.opacity(0.7))
                         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .contextMenu {
+                            Button("编辑会议") {
+                                editingMeeting = meeting
+                                showingMeetingEditor = true
+                            }
+                            Divider()
+                            Button("删除会议", role: .destructive) {
+                                store.deleteMeeting(meeting.id)
+                            }
+                        }
                     }
                 }
             }
@@ -199,6 +232,7 @@ private struct FocusTimerCard: View {
 private struct TodayTaskRow: View {
     @EnvironmentObject private var store: AppStore
     let task: TaskItem
+    let onEdit: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -229,16 +263,31 @@ private struct TodayTaskRow: View {
                 .buttonStyle(.bordered)
             }
             Menu {
+                Button("编辑") { onEdit() }
+                Divider()
                 Button("移到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }
                 Button("放回待安排") { store.moveTask(task.id, to: nil) }
                 Divider()
                 Button("删除", role: .destructive) { store.deleteTask(task.id) }
             } label: {
                 Image(systemName: "ellipsis")
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .frame(width: 28)
         }
         .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("编辑任务") { onEdit() }
+            if !task.isCompleted {
+                Button("移到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }
+                Button("放回待安排") { store.moveTask(task.id, to: nil) }
+            }
+            Divider()
+            Button("删除任务", role: .destructive) { store.deleteTask(task.id) }
+        }
     }
 }

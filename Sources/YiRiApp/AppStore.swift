@@ -156,6 +156,17 @@ final class AppStore: ObservableObject {
         save()
     }
 
+    func updateMeeting(_ meeting: MeetingItem) {
+        guard let index = meetings.firstIndex(where: { $0.id == meeting.id }) else { return }
+        meetings[index] = meeting
+        save()
+    }
+
+    func deleteMeeting(_ id: UUID) {
+        meetings.removeAll { $0.id == id }
+        save()
+    }
+
     func saveReview(note: String) {
         let today = Date().startOfLocalDay
         if let index = reviews.firstIndex(where: { Calendar.yiRi.isDate($0.date, inSameDayAs: today) }) {

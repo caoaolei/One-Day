@@ -4,8 +4,11 @@ struct BoardView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showingTaskEditor = false
 
-    private var backlog: [TaskItem] {
-        store.tasks.filter { !$0.isCompleted && ($0.scheduledDate == nil || !Calendar.yiRi.isDateInToday($0.scheduledDate!)) }
+    private var yesterday: [TaskItem] {
+        let date = Date().addingDays(-1)
+        return store.tasks.filter { item in
+            !item.isCompleted && item.scheduledDate.map { Calendar.yiRi.isDate($0, inSameDayAs: date) } == true
+        }
     }
 
     private var today: [TaskItem] {
@@ -38,7 +41,7 @@ struct BoardView: View {
             }
 
             HStack(alignment: .top, spacing: 14) {
-                BoardColumn(title: "待安排", count: backlog.count, tasks: backlog, accent: false)
+                BoardColumn(title: "昨天", count: yesterday.count, tasks: yesterday, accent: false)
                 BoardColumn(title: "今天", count: today.count, tasks: today, accent: true)
                 BoardColumn(title: "已完成", count: completed.count, tasks: completed, accent: false)
             }
@@ -121,9 +124,12 @@ private struct BoardTaskCard: View {
                     Button("删除", role: .destructive) { store.deleteTask(task.id) }
                 } label: {
                     Image(systemName: "ellipsis")
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
                 }
                 .menuStyle(.borderlessButton)
-                .frame(width: 24)
+                .menuIndicator(.hidden)
+                .frame(width: 28)
             }
             Text(task.title)
                 .font(.subheadline.weight(.medium))

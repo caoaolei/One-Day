@@ -18,12 +18,18 @@ struct RootView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 18)
 
-                List(AppSection.allCases, selection: $selection) { section in
-                    Label(section.rawValue, systemImage: section.systemImage)
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    List(AppSection.allCases, selection: $selection) { section in
+                        Label {
+                            Text(section == .today ? "今天 · \(DateFormatter.yiRiSidebarDate.string(from: context.date))" : section.rawValue)
+                        } icon: {
+                            Image(systemName: section.systemImage)
+                        }
                         .tag(section)
                         .padding(.vertical, 3)
+                    }
+                    .listStyle(.sidebar)
                 }
-                .listStyle(.sidebar)
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {

@@ -2,21 +2,37 @@ import SwiftUI
 
 enum YiRiTheme {
     static let accent = dynamic(
-        light: NSColor(red: 0.26, green: 0.39, blue: 0.28, alpha: 1),
-        dark: NSColor(red: 0.66, green: 0.79, blue: 0.64, alpha: 1)
+        light: NSColor(red: 0.43, green: 0.58, blue: 0.46, alpha: 1),
+        dark: NSColor(red: 0.68, green: 0.80, blue: 0.69, alpha: 1)
     )
     static let accentSoft = dynamic(
-        light: NSColor(red: 0.90, green: 0.94, blue: 0.89, alpha: 1),
-        dark: NSColor(red: 0.20, green: 0.26, blue: 0.20, alpha: 1)
+        light: NSColor(red: 0.94, green: 0.97, blue: 0.93, alpha: 1),
+        dark: NSColor(red: 0.19, green: 0.24, blue: 0.20, alpha: 1)
     )
     static let warm = dynamic(
-        light: NSColor(red: 0.95, green: 0.90, blue: 0.82, alpha: 1),
-        dark: NSColor(red: 0.29, green: 0.24, blue: 0.19, alpha: 1)
+        light: NSColor(red: 0.97, green: 0.94, blue: 0.88, alpha: 1),
+        dark: NSColor(red: 0.29, green: 0.25, blue: 0.20, alpha: 1)
     )
-    static let page = Color(nsColor: .windowBackgroundColor)
-    static let panel = Color(nsColor: .controlBackgroundColor)
-    static let secondaryPanel = Color(nsColor: .underPageBackgroundColor)
-    static let border = Color(nsColor: .separatorColor)
+    static let page = dynamic(
+        light: NSColor(red: 0.98, green: 0.98, blue: 0.97, alpha: 1),
+        dark: NSColor(red: 0.09, green: 0.10, blue: 0.09, alpha: 1)
+    )
+    static let panel = dynamic(
+        light: NSColor(red: 1.00, green: 1.00, blue: 1.00, alpha: 1),
+        dark: NSColor(red: 0.14, green: 0.15, blue: 0.14, alpha: 1)
+    )
+    static let secondaryPanel = dynamic(
+        light: NSColor(red: 0.96, green: 0.97, blue: 0.95, alpha: 1),
+        dark: NSColor(red: 0.17, green: 0.19, blue: 0.17, alpha: 1)
+    )
+    static let inputBackground = dynamic(
+        light: NSColor(red: 0.985, green: 0.99, blue: 0.98, alpha: 1),
+        dark: NSColor(red: 0.15, green: 0.17, blue: 0.15, alpha: 1)
+    )
+    static let border = dynamic(
+        light: NSColor(red: 0.88, green: 0.90, blue: 0.87, alpha: 1),
+        dark: NSColor(red: 0.25, green: 0.29, blue: 0.25, alpha: 1)
+    )
 
     private static func dynamic(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -118,6 +134,13 @@ extension DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    static let yiRiSidebarDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日"
         return formatter
     }()
 }

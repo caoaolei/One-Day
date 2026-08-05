@@ -5,22 +5,27 @@ struct TaskEditorSheet: View {
     @EnvironmentObject private var store: AppStore
 
     let defaultDate: Date
-    @State private var title = ""
-    @State private var category = "深度工作"
-    @State private var estimatedMinutes = 45
+    let task: TaskItem?
+    @State private var title: String
+    @State private var category: String
+    @State private var estimatedMinutes: Int
     @State private var scheduledDate: Date
     @State private var suggestionReason = ""
 
     private let categories = ["深度工作", "日常", "写作", "规划", "复盘", "自定义"]
 
-    init(defaultDate: Date) {
+    init(defaultDate: Date, task: TaskItem? = nil) {
         self.defaultDate = defaultDate
-        _scheduledDate = State(initialValue: defaultDate)
+        self.task = task
+        _title = State(initialValue: task?.title ?? "")
+        _category = State(initialValue: task?.category ?? "深度工作")
+        _estimatedMinutes = State(initialValue: task?.estimatedMinutes ?? 45)
+        _scheduledDate = State(initialValue: task?.scheduledDate ?? defaultDate)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            sheetHeader(title: "添加任务", subtitle: "自动估时会优先参考你过去的实际用时")
+            sheetHeader(title: task == nil ? "添加任务" : "编辑任务", subtitle: "自动估时会优先参考你过去的实际用时")
 
             Form {
                 TextField("任务名称", text: $title)
@@ -51,13 +56,22 @@ struct TaskEditorSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }
-                Button("加入今天") {
-                    store.addTask(
-                        title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                        category: category,
-                        estimatedMinutes: estimatedMinutes,
-                        date: scheduledDate
-                    )
+                Button(task == nil ? "加入今天" : "保存修改") {
+                    let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if var task {
+                        task.title = trimmedTitle
+                        task.category = category
+                        task.estimatedMinutes = estimatedMinutes
+                        task.scheduledDate = scheduledDate.startOfLocalDay
+                        store.updateTask(task)
+                    } else {
+                        store.addTask(
+                            title: trimmedTitle,
+                            category: category,
+                            estimatedMinutes: estimatedMinutes,
+                            date: scheduledDate
+                        )
+                    }
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
@@ -73,19 +87,24 @@ struct MeetingEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: AppStore
 
-    @State private var title = ""
+    let meeting: MeetingItem?
+    @State private var title: String
     @State private var startDate: Date
-    @State private var durationMinutes = 45
-    @State private var location = ""
+    @State private var durationMinutes: Int
+    @State private var location: String
 
-    init(defaultDate: Date) {
+    init(defaultDate: Date, meeting: MeetingItem? = nil) {
         let initial = Calendar.yiRi.date(bySettingHour: 10, minute: 0, second: 0, of: defaultDate) ?? defaultDate
-        _startDate = State(initialValue: initial)
+        self.meeting = meeting
+        _title = State(initialValue: meeting?.title ?? "")
+        _startDate = State(initialValue: meeting?.startDate ?? initial)
+        _durationMinutes = State(initialValue: meeting?.durationMinutes ?? 45)
+        _location = State(initialValue: meeting?.location ?? "")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            sheetHeader(title: "添加会议", subtitle: "会议仅手动录入，不会连接外部日历")
+            sheetHeader(title: meeting == nil ? "添加会议" : "编辑会议", subtitle: "会议仅手动录入，不会连接外部日历")
             Form {
                 TextField("会议名称", text: $title)
                 DatePicker("开始时间", selection: $startDate)
@@ -96,8 +115,21 @@ struct MeetingEditorSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }
-                Button("添加会议") {
-                    store.addMeeting(title: title, startDate: startDate, durationMinutes: durationMinutes, location: location)
+                Button(meeting == nil ? "添加会议" : "保存修改") {
+                    if var meeting {
+                        meeting.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        meeting.startDate = startDate
+                        meeting.durationMinutes = durationMinutes
+                        meeting.location = location
+                        store.updateMeeting(meeting)
+                    } else {
+                        store.addMeeting(
+                            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                            startDate: startDate,
+                            durationMinutes: durationMinutes,
+                            location: location
+                        )
+                    }
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)

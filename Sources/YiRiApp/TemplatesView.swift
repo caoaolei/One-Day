@@ -156,9 +156,12 @@ private struct TemplateCard: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
                     }
                     .menuStyle(.borderlessButton)
-                    .frame(width: 24)
+                    .menuIndicator(.hidden)
+                    .frame(width: 28)
                 }
                 Text(template.name)
                     .font(.headline)
@@ -224,8 +227,12 @@ private struct TemplateEditorSheet: View {
                         .frame(minHeight: 150)
                         .padding(7)
                         .scrollContentBackground(.hidden)
-                        .background(YiRiTheme.secondaryPanel)
+                        .background(YiRiTheme.inputBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(YiRiTheme.border, lineWidth: 1)
+                        }
                 }
             }
             .formStyle(.grouped)

@@ -106,8 +106,12 @@ struct ReviewView: View {
                             .frame(minHeight: 120)
                             .padding(8)
                             .scrollContentBackground(.hidden)
-                            .background(YiRiTheme.secondaryPanel)
+                            .background(YiRiTheme.inputBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                    .stroke(YiRiTheme.border, lineWidth: 1)
+                            }
                         HStack {
                             Text("完成得好的、遇到的阻碍、明天想调整的……")
                                 .font(.caption)
