@@ -37,3 +37,13 @@ sudo xcodebuild -runFirstLaunch
 ```
 
 应用数据保存在 `~/Library/Application Support/YiRi/data.json`。
+
+## 制作 DMG 安装盘
+
+```bash
+./scripts/create-dmg.sh
+```
+
+脚本会先重新构建 App，再在 `dist/` 中生成对应当前 Mac 架构的 DMG。打开安装盘后，将“一日”拖到“Applications”即可安装。
+
+当前版本采用本地临时签名，适合内部试用。未经过 Apple Developer ID 签名和公证时，其他 Mac 第一次打开可能需要右键点击“一日”，选择“打开”。
