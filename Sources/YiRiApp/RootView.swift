@@ -3,6 +3,21 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selection: AppSection? = .today
+    @State private var showingProfileSetup = false
+
+    private var displayName: String {
+        let name = store.settings.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "设置称呼" : name
+    }
+
+    private var avatarText: String {
+        guard displayName != "设置称呼", let first = displayName.first else { return "?" }
+        return String(first).uppercased()
+    }
+
+    private var needsProfileSetup: Bool {
+        store.settings.displayName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+    }
 
     var body: some View {
         NavigationSplitView {
@@ -31,22 +46,30 @@ struct RootView: View {
                     .listStyle(.sidebar)
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
+                Button {
+                    showingProfileSetup = true
+                } label: {
                     HStack(spacing: 8) {
                         Circle()
                             .fill(YiRiTheme.warm)
                             .frame(width: 30, height: 30)
-                            .overlay(Text("C").foregroundStyle(.primary))
+                            .overlay(Text(avatarText).foregroundStyle(.primary))
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Cal")
+                            Text(displayName)
                                 .font(.subheadline)
                             Text("数据仅保存在本机")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
+                        Spacer()
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(12)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 230)
         } detail: {
@@ -59,6 +82,17 @@ struct RootView: View {
                 ReviewView()
             case .templates:
                 TemplatesView()
+            }
+        }
+        .sheet(isPresented: $showingProfileSetup) {
+            ProfileSetupSheet(
+                currentName: store.settings.displayName,
+                isFirstLaunch: needsProfileSetup
+            )
+        }
+        .onAppear {
+            if needsProfileSetup {
+                showingProfileSetup = true
             }
         }
     }

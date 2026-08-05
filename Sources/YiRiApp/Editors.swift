@@ -1,5 +1,64 @@
 import SwiftUI
 
+struct ProfileSetupSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: AppStore
+
+    let isFirstLaunch: Bool
+    @State private var name: String
+
+    init(currentName: String?, isFirstLaunch: Bool) {
+        self.isFirstLaunch = isFirstLaunch
+        _name = State(initialValue: currentName ?? "")
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            HStack(spacing: 14) {
+                Image(systemName: "sunrise.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(YiRiTheme.accent)
+                    .frame(width: 54, height: 54)
+                    .background(YiRiTheme.accentSoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+                sheetHeader(
+                    title: isFirstLaunch ? "欢迎使用一日" : "修改个人称呼",
+                    subtitle: isFirstLaunch ? "先告诉我怎么称呼你，信息只保存在这台 Mac" : "新的称呼会显示在侧边栏"
+                )
+            }
+
+            TextField("你的称呼", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .font(.title3)
+                .onSubmit(save)
+
+            HStack {
+                if !isFirstLaunch {
+                    Button("取消") { dismiss() }
+                }
+                Spacer()
+                Button(isFirstLaunch ? "开始使用" : "保存") { save() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(trimmedName.isEmpty)
+            }
+        }
+        .padding(28)
+        .frame(width: 460, height: 250)
+        .interactiveDismissDisabled(isFirstLaunch)
+    }
+
+    private func save() {
+        guard !trimmedName.isEmpty else { return }
+        store.updateDisplayName(trimmedName)
+        dismiss()
+    }
+}
+
 struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: AppStore

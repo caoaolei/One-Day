@@ -8,6 +8,8 @@
     <string>一日</string>
     <key>CFBundleExecutable</key>
     <string>YiRi</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.local.yiri</string>
     <key>CFBundleInfoDictionaryVersion</key>

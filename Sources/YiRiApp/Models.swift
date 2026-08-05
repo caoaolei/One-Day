@@ -70,6 +70,7 @@ struct DailyReview: Codable, Identifiable, Hashable {
 }
 
 struct AppSettings: Codable, Hashable {
+    var displayName: String?
     var morningReminderMinutes = 10 * 60 + 30
     var eveningReminderMinutes = 20 * 60
     var carryOverPolicy = CarryOverPolicy.manual

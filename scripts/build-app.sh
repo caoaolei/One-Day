@@ -21,6 +21,7 @@ env \
 mkdir -p "$CONTENTS_PATH/MacOS" "$CONTENTS_PATH/Resources"
 cp "$BUILD_PATH/arm64-apple-macosx/release/YiRi" "$CONTENTS_PATH/MacOS/YiRi"
 cp "$PROJECT_ROOT/Resources/Info.plist" "$CONTENTS_PATH/Info.plist"
+cp "$PROJECT_ROOT/Resources/AppIcon.icns" "$CONTENTS_PATH/Resources/AppIcon.icns"
 chmod +x "$CONTENTS_PATH/MacOS/YiRi"
 
 if command -v codesign >/dev/null 2>&1; then

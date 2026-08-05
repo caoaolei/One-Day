@@ -193,6 +193,12 @@ final class AppStore: ObservableObject {
         save()
     }
 
+    func updateDisplayName(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.displayName = trimmed.isEmpty ? nil : trimmed
+        save()
+    }
+
     func setNotificationAuthorization(_ authorized: Bool) {
         settings.notificationsAuthorized = authorized
         save()
