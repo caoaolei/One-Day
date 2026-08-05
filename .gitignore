@@ -1,0 +1,4 @@
+.build/
+.swiftpm-cache/
+.DS_Store
+dist/

@@ -1,0 +1,1710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Daily Review App</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Daily Review App" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Daily Review App&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --red: light-dark(rgb(186 38 35), rgb(250 66 62));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;daily-review-app&quot; class=&quot;dr-shell&quot;&gt;
+  &lt;aside class=&quot;dr-sidebar&quot; aria-label=&quot;主导航&quot;&gt;
+    &lt;div class=&quot;dr-brand&quot;&gt;
+      &lt;span class=&quot;dr-brand-mark&quot; aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;circle-check-big&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+      &lt;span&gt;一日&lt;/span&gt;
+    &lt;/div&gt;
+    &lt;nav class=&quot;dr-nav&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;dr-nav-item is-active&quot; data-view=&quot;today&quot; aria-pressed=&quot;true&quot;&gt;&lt;i data-lucide=&quot;sun&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;今天&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;dr-nav-item&quot; data-view=&quot;board&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;columns-3&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;看板&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;dr-nav-item&quot; data-view=&quot;review&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;notebook-pen&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;复盘&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;dr-nav-item&quot; data-view=&quot;templates&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;layout-template&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;模版&lt;/span&gt;&lt;/button&gt;
+    &lt;/nav&gt;
+    &lt;div class=&quot;dr-sidebar-foot&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;dr-profile&quot;&gt;&lt;span class=&quot;dr-avatar&quot;&gt;C&lt;/span&gt;&lt;span&gt;&lt;strong&gt;Cal&lt;/strong&gt;&lt;small&gt;连续记录 12 天&lt;/small&gt;&lt;/span&gt;&lt;i data-lucide=&quot;settings&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/aside&gt;
+
+  &lt;main class=&quot;dr-main&quot;&gt;
+    &lt;section class=&quot;dr-view is-visible&quot; data-panel=&quot;today&quot; aria-label=&quot;今天&quot;&gt;
+      &lt;header class=&quot;dr-topbar&quot;&gt;
+        &lt;div&gt;
+          &lt;p class=&quot;dr-eyebrow&quot;&gt;8 月 5 日 · 星期三&lt;/p&gt;
+          &lt;h1&gt;早上好，今天想完成什么？&lt;/h1&gt;
+        &lt;/div&gt;
+        &lt;button type=&quot;button&quot; class=&quot;dr-icon-button&quot; aria-label=&quot;通知&quot;&gt;&lt;i data-lucide=&quot;bell&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;dr-notification-dot&quot;&gt;&lt;/span&gt;&lt;/button&gt;
+      &lt;/header&gt;
+
+      &lt;section class=&quot;dr-focus-card&quot; aria-label=&quot;进行中的任务&quot;&gt;
+        &lt;div class=&quot;dr-focus-copy&quot;&gt;
+          &lt;span class=&quot;dr-kicker&quot;&gt;&lt;span class=&quot;dr-live-dot&quot;&gt;&lt;/span&gt;专注中&lt;/span&gt;
+          &lt;h2&gt;完成每日复盘 App 原型&lt;/h2&gt;
+          &lt;p&gt;10:15 开始 · 预计 45 分钟&lt;/p&gt;
+          &lt;label class=&quot;dr-dnd&quot;&gt;&lt;input type=&quot;checkbox&quot; id=&quot;dr-dnd&quot; checked&gt;&lt;span&gt;&lt;i data-lucide=&quot;moon&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;开始任务时提醒开启勿扰模式&lt;/span&gt;&lt;/label&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;dr-timer-area&quot;&gt;
+          &lt;div class=&quot;dr-timer-stack&quot;&gt;
+            &lt;div class=&quot;dr-timer&quot; aria-live=&quot;polite&quot;&gt;00:02:42&lt;/div&gt;
+            &lt;span&gt;已专注 / 预计 45:00&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;dr-timer-actions&quot;&gt;
+            &lt;button type=&quot;button&quot; class=&quot;dr-round-button dr-timer-toggle&quot; aria-label=&quot;暂停计时&quot;&gt;&lt;i data-lucide=&quot;pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+            &lt;button type=&quot;button&quot; class=&quot;dr-round-button dr-finish-focus&quot; aria-label=&quot;完成任务&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;div class=&quot;dr-today-grid&quot;&gt;
+        &lt;section class=&quot;dr-panel dr-plan-panel&quot;&gt;
+          &lt;div class=&quot;dr-section-head&quot;&gt;
+            &lt;div&gt;&lt;h2&gt;今日计划&lt;/h2&gt;&lt;p&gt;&lt;span id=&quot;dr-done-count&quot;&gt;1&lt;/span&gt; / 4 已完成 · 计划 4 小时 15 分&lt;/p&gt;&lt;/div&gt;
+            &lt;div class=&quot;dr-section-actions&quot;&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-add-button&quot; id=&quot;dr-bulk-add&quot;&gt;&lt;i data-lucide=&quot;calendar-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;批量补录&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-add-button&quot; id=&quot;dr-show-add&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;添加任务&lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+          &lt;form class=&quot;dr-add-form&quot; id=&quot;dr-add-form&quot; hidden&gt;
+            &lt;label&gt;&lt;span&gt;任务&lt;/span&gt;&lt;input id=&quot;dr-new-task&quot; type=&quot;text&quot; placeholder=&quot;例如：整理周报&quot; required&gt;&lt;/label&gt;
+            &lt;label class=&quot;dr-estimate-field&quot;&gt;&lt;span&gt;预计&lt;/span&gt;&lt;span class=&quot;dr-estimate-control&quot;&gt;&lt;select id=&quot;dr-new-time&quot;&gt;&lt;option&gt;30 分钟&lt;/option&gt;&lt;option&gt;45 分钟&lt;/option&gt;&lt;option&gt;1 小时&lt;/option&gt;&lt;option&gt;2 小时&lt;/option&gt;&lt;/select&gt;&lt;button type=&quot;button&quot; id=&quot;dr-auto-estimate&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;自动估时&lt;/button&gt;&lt;/span&gt;&lt;small id=&quot;dr-estimate-note&quot; hidden&gt;&lt;/small&gt;&lt;/label&gt;
+            &lt;button type=&quot;submit&quot; class=&quot;dr-primary-button&quot;&gt;加入今天&lt;/button&gt;
+          &lt;/form&gt;
+          &lt;div class=&quot;dr-task-list&quot; id=&quot;dr-task-list&quot;&gt;
+            &lt;article class=&quot;dr-task is-done&quot;&gt;
+              &lt;label class=&quot;dr-check&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;check&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/label&gt;
+              &lt;div class=&quot;dr-task-copy&quot;&gt;&lt;h3&gt;梳理本周优先级&lt;/h3&gt;&lt;p&gt;30 分钟 · 深度工作&lt;/p&gt;&lt;/div&gt;
+              &lt;span class=&quot;dr-task-status&quot;&gt;已完成&lt;/span&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-task-more&quot; aria-label=&quot;更多操作&quot;&gt;&lt;i data-lucide=&quot;ellipsis&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+            &lt;/article&gt;
+            &lt;article class=&quot;dr-task is-running&quot;&gt;
+              &lt;label class=&quot;dr-check&quot;&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;check&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/label&gt;
+              &lt;div class=&quot;dr-task-copy&quot;&gt;&lt;h3&gt;完成每日复盘 App 原型&lt;/h3&gt;&lt;p&gt;45 分钟 · 进行中 02:42&lt;/p&gt;&lt;/div&gt;
+              &lt;span class=&quot;dr-task-status&quot;&gt;专注中&lt;/span&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-task-more&quot; aria-label=&quot;更多操作&quot;&gt;&lt;i data-lucide=&quot;ellipsis&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+            &lt;/article&gt;
+            &lt;article class=&quot;dr-task&quot;&gt;
+              &lt;label class=&quot;dr-check&quot;&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;check&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/label&gt;
+              &lt;div class=&quot;dr-task-copy&quot;&gt;&lt;h3&gt;回复项目邮件&lt;/h3&gt;&lt;p&gt;30 分钟 · 日常&lt;/p&gt;&lt;/div&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-start-button&quot;&gt;开始&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-task-more&quot; aria-label=&quot;更多操作&quot;&gt;&lt;i data-lucide=&quot;ellipsis&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+            &lt;/article&gt;
+            &lt;article class=&quot;dr-task&quot;&gt;
+              &lt;label class=&quot;dr-check&quot;&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;check&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/label&gt;
+              &lt;div class=&quot;dr-task-copy&quot;&gt;&lt;h3&gt;撰写季度复盘初稿&lt;/h3&gt;&lt;p&gt;2 小时 30 分 · 写作&lt;/p&gt;&lt;/div&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-start-button&quot;&gt;开始&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;dr-task-more&quot; aria-label=&quot;更多操作&quot;&gt;&lt;i data-lucide=&quot;ellipsis&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+            &lt;/article&gt;
+          &lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;aside class=&quot;dr-panel dr-schedule-panel&quot;&gt;
+          &lt;div class=&quot;dr-section-head&quot;&gt;&lt;div&gt;&lt;h2&gt;日程&lt;/h2&gt;&lt;p&gt;2 场会议 · 手动录入&lt;/p&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;dr-add-button&quot; id=&quot;dr-add-meeting&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;会议&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;dr-agenda&quot;&gt;
+            &lt;div class=&quot;dr-time-label&quot;&gt;09:00&lt;/div&gt;&lt;div class=&quot;dr-time-line&quot;&gt;&lt;/div&gt;
+            &lt;article class=&quot;dr-meeting&quot;&gt;&lt;span&gt;10:00&lt;/span&gt;&lt;h3&gt;产品周会&lt;/h3&gt;&lt;p&gt;45 分钟 · 腾讯会议&lt;/p&gt;&lt;div class=&quot;dr-people&quot;&gt;&lt;span&gt;Y&lt;/span&gt;&lt;span&gt;L&lt;/span&gt;&lt;span&gt;+3&lt;/span&gt;&lt;/div&gt;&lt;/article&gt;
+            &lt;div class=&quot;dr-now&quot;&gt;&lt;span&gt;11:08&lt;/span&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+            &lt;div class=&quot;dr-time-label&quot;&gt;12:00&lt;/div&gt;&lt;div class=&quot;dr-time-line&quot;&gt;&lt;/div&gt;
+            &lt;article class=&quot;dr-meeting dr-meeting-secondary&quot;&gt;&lt;span&gt;14:30&lt;/span&gt;&lt;h3&gt;设计评审&lt;/h3&gt;&lt;p&gt;45 分钟 · 会议室 A&lt;/p&gt;&lt;div class=&quot;dr-people&quot;&gt;&lt;span&gt;M&lt;/span&gt;&lt;span&gt;Z&lt;/span&gt;&lt;/div&gt;&lt;/article&gt;
+            &lt;div class=&quot;dr-time-label&quot;&gt;17:00&lt;/div&gt;&lt;div class=&quot;dr-time-line&quot;&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/aside&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;section class=&quot;dr-view&quot; data-panel=&quot;board&quot; aria-label=&quot;任务看板&quot;&gt;
+      &lt;header class=&quot;dr-topbar&quot;&gt;&lt;div&gt;&lt;p class=&quot;dr-eyebrow&quot;&gt;所有任务&lt;/p&gt;&lt;h1&gt;任务看板&lt;/h1&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;dr-primary-button&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;新建任务&lt;/button&gt;&lt;/header&gt;
+      &lt;div class=&quot;dr-board-tools&quot;&gt;&lt;div class=&quot;dr-filter-group&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;is-selected&quot;&gt;本周&lt;/button&gt;&lt;button type=&quot;button&quot;&gt;本月&lt;/button&gt;&lt;button type=&quot;button&quot;&gt;全部&lt;/button&gt;&lt;/div&gt;&lt;p&gt;共 9 个任务 · 预计 12 小时&lt;/p&gt;&lt;/div&gt;
+      &lt;div class=&quot;dr-board&quot;&gt;
+        &lt;section class=&quot;dr-board-column&quot;&gt;&lt;header&gt;&lt;h2&gt;待安排&lt;/h2&gt;&lt;span&gt;3&lt;/span&gt;&lt;/header&gt;&lt;article class=&quot;dr-board-card&quot;&gt;&lt;span class=&quot;dr-tag&quot;&gt;产品&lt;/span&gt;&lt;h3&gt;确定 v1 功能范围&lt;/h3&gt;&lt;p&gt;1 小时 · 截止周四&lt;/p&gt;&lt;/article&gt;&lt;article class=&quot;dr-board-card&quot;&gt;&lt;span class=&quot;dr-tag&quot;&gt;写作&lt;/span&gt;&lt;h3&gt;整理用户访谈结论&lt;/h3&gt;&lt;p&gt;2 小时 · 无截止日期&lt;/p&gt;&lt;/article&gt;&lt;button type=&quot;button&quot; class=&quot;dr-column-add&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;添加任务&lt;/button&gt;&lt;/section&gt;
+        &lt;section class=&quot;dr-board-column&quot;&gt;&lt;header&gt;&lt;h2&gt;今天&lt;/h2&gt;&lt;span&gt;4&lt;/span&gt;&lt;/header&gt;&lt;article class=&quot;dr-board-card is-accent&quot;&gt;&lt;span class=&quot;dr-tag&quot;&gt;深度工作&lt;/span&gt;&lt;h3&gt;完成每日复盘 App 原型&lt;/h3&gt;&lt;p&gt;45 分钟 · 专注中&lt;/p&gt;&lt;div class=&quot;dr-card-progress&quot;&gt;&lt;i style=&quot;width:42%&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;/article&gt;&lt;article class=&quot;dr-board-card&quot;&gt;&lt;span class=&quot;dr-tag&quot;&gt;日常&lt;/span&gt;&lt;h3&gt;回复项目邮件&lt;/h3&gt;&lt;p&gt;30 分钟 · 今天&lt;/p&gt;&lt;/article&gt;&lt;article class=&quot;dr-board-card&quot;&gt;&lt;span class=&quot;dr-tag&quot;&gt;写作&lt;/span&gt;&lt;h3&gt;撰写季度复盘初稿&lt;/h3&gt;&lt;p&gt;2 小时 30 分 · 今天&lt;/p&gt;&lt;/article&gt;&lt;/section&gt;
+        &lt;section class=&quot;dr-board-column&quot;&gt;&lt;header&gt;&lt;h2&gt;已完成&lt;/h2&gt;&lt;span&gt;2&lt;/span&gt;&lt;/header&gt;&lt;article class=&quot;dr-board-card is-complete&quot;&gt;&lt;span class=&quot;dr-tag&quot;&gt;规划&lt;/span&gt;&lt;h3&gt;梳理本周优先级&lt;/h3&gt;&lt;p&gt;用时 26 分钟 · 今天&lt;/p&gt;&lt;/article&gt;&lt;article class=&quot;dr-board-card is-complete&quot;&gt;&lt;span class=&quot;dr-tag&quot;&gt;会议&lt;/span&gt;&lt;h3&gt;准备产品周会材料&lt;/h3&gt;&lt;p&gt;用时 35 分钟 · 昨天&lt;/p&gt;&lt;/article&gt;&lt;/section&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;section class=&quot;dr-view&quot; data-panel=&quot;review&quot; aria-label=&quot;每日复盘&quot;&gt;
+      &lt;header class=&quot;dr-topbar&quot;&gt;&lt;div&gt;&lt;p class=&quot;dr-eyebrow&quot;&gt;晚间复盘 · 预计 3 分钟&lt;/p&gt;&lt;h1&gt;今天过得怎么样？&lt;/h1&gt;&lt;/div&gt;&lt;span class=&quot;dr-saved-state&quot;&gt;&lt;i data-lucide=&quot;cloud-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;已自动保存&lt;/span&gt;&lt;/header&gt;
+      &lt;div class=&quot;dr-review-layout&quot;&gt;
+        &lt;section class=&quot;dr-panel dr-review-card&quot;&gt;
+          &lt;div class=&quot;dr-review-summary&quot;&gt;&lt;div&gt;&lt;strong&gt;3 / 4&lt;/strong&gt;&lt;span&gt;完成任务&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;strong&gt;3h 38m&lt;/strong&gt;&lt;span&gt;实际专注&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;strong&gt;86%&lt;/strong&gt;&lt;span&gt;时间准确度&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;dr-review-section&quot;&gt;&lt;div class=&quot;dr-section-head&quot;&gt;&lt;div&gt;&lt;h2&gt;确认任务状态&lt;/h2&gt;&lt;p&gt;未完成任务默认由你逐项决定&lt;/p&gt;&lt;/div&gt;&lt;label class=&quot;dr-carry-setting&quot;&gt;&lt;span&gt;处理方式&lt;/span&gt;&lt;select id=&quot;dr-carry-mode&quot;&gt;&lt;option&gt;逐项决定（默认）&lt;/option&gt;&lt;option&gt;自动移到明天&lt;/option&gt;&lt;option&gt;保留在待安排&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;/div&gt;
+            &lt;div class=&quot;dr-review-task&quot;&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;梳理本周优先级&lt;/span&gt;&lt;/label&gt;&lt;span&gt;预计 30m · 实际 26m&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;dr-review-task&quot;&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;完成每日复盘 App 原型&lt;/span&gt;&lt;/label&gt;&lt;span&gt;预计 45m · 实际 52m&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;dr-review-task&quot;&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;回复项目邮件&lt;/span&gt;&lt;/label&gt;&lt;span&gt;预计 30m · 实际 25m&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;dr-review-task&quot;&gt;&lt;label&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span&gt;撰写季度复盘初稿&lt;/span&gt;&lt;/label&gt;&lt;button type=&quot;button&quot; class=&quot;dr-move-button&quot;&gt;移到明天&lt;/button&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;dr-review-section&quot;&gt;&lt;label for=&quot;dr-note&quot;&gt;&lt;strong&gt;今天值得记住什么？&lt;/strong&gt;&lt;span&gt;可选&lt;/span&gt;&lt;/label&gt;&lt;textarea id=&quot;dr-note&quot; rows=&quot;4&quot; placeholder=&quot;完成得好的、遇到的阻碍、明天想调整的……&quot;&gt;上午的深度工作状态很好；下午会议后切换成本偏高，明天预留 15 分钟缓冲。&lt;/textarea&gt;&lt;/div&gt;
+          &lt;div class=&quot;dr-review-actions&quot;&gt;&lt;span&gt;连续复盘 12 天 🔥&lt;/span&gt;&lt;button type=&quot;button&quot; class=&quot;dr-primary-button&quot; id=&quot;dr-save-review&quot;&gt;完成今日复盘&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+        &lt;aside class=&quot;dr-panel dr-insight-panel&quot;&gt;&lt;span class=&quot;dr-kicker&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;今日洞察&lt;/span&gt;&lt;h2&gt;你的估时越来越准了&lt;/h2&gt;&lt;p&gt;过去 7 天任务实际用时平均比预计多 14%，今天只多了 4%。&lt;/p&gt;&lt;div class=&quot;dr-bars&quot; aria-label=&quot;最近五天估时准确度&quot;&gt;&lt;span style=&quot;height:45%&quot;&gt;&lt;/span&gt;&lt;span style=&quot;height:62%&quot;&gt;&lt;/span&gt;&lt;span style=&quot;height:58%&quot;&gt;&lt;/span&gt;&lt;span style=&quot;height:76%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;is-current&quot; style=&quot;height:86%&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;dr-bar-labels&quot;&gt;&lt;span&gt;周六&lt;/span&gt;&lt;span&gt;周日&lt;/span&gt;&lt;span&gt;周一&lt;/span&gt;&lt;span&gt;周二&lt;/span&gt;&lt;span&gt;今天&lt;/span&gt;&lt;/div&gt;&lt;/aside&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;section class=&quot;dr-view&quot; data-panel=&quot;templates&quot; aria-label=&quot;自定义模版&quot;&gt;
+      &lt;header class=&quot;dr-topbar&quot;&gt;&lt;div&gt;&lt;p class=&quot;dr-eyebrow&quot;&gt;重复使用你的工作方式&lt;/p&gt;&lt;h1&gt;模版&lt;/h1&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;dr-primary-button&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;新建模版&lt;/button&gt;&lt;/header&gt;
+      &lt;section class=&quot;dr-reminder-settings&quot; aria-label=&quot;每日提醒时间&quot;&gt;
+        &lt;div class=&quot;dr-reminder-title&quot;&gt;&lt;span&gt;&lt;i data-lucide=&quot;bell-ring&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;h2&gt;每日提醒&lt;/h2&gt;&lt;p&gt;随时调整开始计划和晚间复盘的提醒时间&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;dr-reminder-fields&quot;&gt;
+          &lt;label for=&quot;dr-morning-time&quot;&gt;&lt;span&gt;开始计划&lt;/span&gt;&lt;input id=&quot;dr-morning-time&quot; type=&quot;time&quot; value=&quot;10:30&quot;&gt;&lt;/label&gt;
+          &lt;label for=&quot;dr-evening-time&quot;&gt;&lt;span&gt;晚间复盘&lt;/span&gt;&lt;input id=&quot;dr-evening-time&quot; type=&quot;time&quot; value=&quot;20:00&quot;&gt;&lt;/label&gt;
+          &lt;button type=&quot;button&quot; class=&quot;dr-primary-button&quot; id=&quot;dr-save-reminders&quot;&gt;保存提醒&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+      &lt;div class=&quot;dr-template-grid&quot;&gt;
+        &lt;article class=&quot;dr-template-card is-featured&quot;&gt;&lt;div class=&quot;dr-template-icon&quot;&gt;&lt;i data-lucide=&quot;sunrise&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;span class=&quot;dr-default-badge&quot;&gt;默认&lt;/span&gt;&lt;h2&gt;工作日启动&lt;/h2&gt;&lt;p&gt;&lt;span id=&quot;dr-morning-summary&quot;&gt;每日 10:30 提醒&lt;/span&gt; · 电脑端 · 会议手动录入&lt;/p&gt;&lt;ul&gt;&lt;li&gt;今天最重要的一件事&lt;/li&gt;&lt;li&gt;任务 + 预计用时&lt;/li&gt;&lt;li&gt;正向计时与勿扰提醒&lt;/li&gt;&lt;/ul&gt;&lt;button type=&quot;button&quot; class=&quot;dr-template-action&quot;&gt;编辑模版&lt;/button&gt;&lt;/article&gt;
+        &lt;article class=&quot;dr-template-card&quot;&gt;&lt;div class=&quot;dr-template-icon&quot;&gt;&lt;i data-lucide=&quot;moon-star&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;h2&gt;晚间复盘&lt;/h2&gt;&lt;p&gt;&lt;span id=&quot;dr-evening-summary&quot;&gt;每日 20:00 提醒&lt;/span&gt; · 未完成任务逐项决定&lt;/p&gt;&lt;ul&gt;&lt;li&gt;确认任务完成状态&lt;/li&gt;&lt;li&gt;实际用时与备注&lt;/li&gt;&lt;li&gt;移到明天或放回待安排&lt;/li&gt;&lt;/ul&gt;&lt;button type=&quot;button&quot; class=&quot;dr-template-action&quot;&gt;编辑模版&lt;/button&gt;&lt;/article&gt;
+        &lt;article class=&quot;dr-template-card&quot;&gt;&lt;div class=&quot;dr-template-icon&quot;&gt;&lt;i data-lucide=&quot;calendar-range&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;h2&gt;无会专注日&lt;/h2&gt;&lt;p&gt;手动使用 · 3 个 90 分钟专注块&lt;/p&gt;&lt;ul&gt;&lt;li&gt;屏蔽非紧急通知&lt;/li&gt;&lt;li&gt;专注块之间休息 20 分钟&lt;/li&gt;&lt;li&gt;当天结束统一复盘&lt;/li&gt;&lt;/ul&gt;&lt;button type=&quot;button&quot; class=&quot;dr-template-action&quot;&gt;编辑模版&lt;/button&gt;&lt;/article&gt;
+        &lt;button type=&quot;button&quot; class=&quot;dr-template-create&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;strong&gt;创建自定义模版&lt;/strong&gt;&lt;span&gt;选择字段、提醒和默认时间&lt;/span&gt;&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/main&gt;
+
+  &lt;dialog class=&quot;dr-bulk-dialog&quot; id=&quot;dr-bulk-dialog&quot; aria-labelledby=&quot;dr-bulk-title&quot;&gt;
+    &lt;div class=&quot;dr-dialog-head&quot;&gt;&lt;div&gt;&lt;p&gt;批量补每日任务&lt;/p&gt;&lt;h2 id=&quot;dr-bulk-title&quot;&gt;为多个日期补充任务&lt;/h2&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;dr-icon-button&quot; id=&quot;dr-close-bulk&quot; aria-label=&quot;关闭&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+    &lt;div class=&quot;dr-bulk-dates&quot;&gt;
+      &lt;label for=&quot;dr-bulk-start&quot;&gt;&lt;span&gt;开始日期&lt;/span&gt;&lt;input id=&quot;dr-bulk-start&quot; type=&quot;date&quot; value=&quot;2026-08-01&quot;&gt;&lt;/label&gt;
+      &lt;label for=&quot;dr-bulk-end&quot;&gt;&lt;span&gt;结束日期&lt;/span&gt;&lt;input id=&quot;dr-bulk-end&quot; type=&quot;date&quot; value=&quot;2026-08-04&quot;&gt;&lt;/label&gt;
+      &lt;label for=&quot;dr-bulk-template&quot;&gt;&lt;span&gt;任务来源&lt;/span&gt;&lt;select id=&quot;dr-bulk-template&quot;&gt;&lt;option&gt;工作日启动模版&lt;/option&gt;&lt;option&gt;选择现有任务&lt;/option&gt;&lt;option&gt;空白任务&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+    &lt;/div&gt;
+    &lt;fieldset class=&quot;dr-bulk-tasks&quot;&gt;
+      &lt;legend&gt;选择要补录的任务&lt;/legend&gt;
+      &lt;label&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;&lt;strong&gt;梳理今日优先级&lt;/strong&gt;&lt;small&gt;自动估时 30 分钟&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+      &lt;label&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;&lt;strong&gt;处理邮件与消息&lt;/strong&gt;&lt;small&gt;自动估时 25 分钟&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+      &lt;label&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;&lt;strong&gt;晚间复盘&lt;/strong&gt;&lt;small&gt;自动估时 10 分钟&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+      &lt;label&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span&gt;&lt;strong&gt;深度工作时段&lt;/strong&gt;&lt;small&gt;自动估时 90 分钟&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+    &lt;/fieldset&gt;
+    &lt;label class=&quot;dr-skip-existing&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;跳过已经有同名任务的日期&lt;/span&gt;&lt;/label&gt;
+    &lt;div class=&quot;dr-bulk-summary&quot;&gt;&lt;i data-lucide=&quot;calendar-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span id=&quot;dr-bulk-summary&quot;&gt;将为 4 天补录 12 条任务&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;dr-dialog-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;dr-template-action&quot; id=&quot;dr-cancel-bulk&quot;&gt;取消&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;dr-primary-button&quot; id=&quot;dr-confirm-bulk&quot;&gt;确认补录&lt;/button&gt;&lt;/div&gt;
+  &lt;/dialog&gt;
+
+  &lt;div class=&quot;dr-toast&quot; id=&quot;dr-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot; hidden&gt;&lt;i data-lucide=&quot;check-circle-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;已保存&lt;/span&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;style&gt;
+  #daily-review-app {
+    --dr-bg: light-dark(#f4f4f0, #171816);
+    --dr-surface: light-dark(#ffffff, #22231f);
+    --dr-surface-2: light-dark(#f7f7f3, #2b2c27);
+    --dr-text: light-dark(#24251f, #f1f1e9);
+    --dr-muted: light-dark(#74756d, #aeb0a6);
+    --dr-border: light-dark(#e3e4dc, #3b3d36);
+    --dr-accent: light-dark(#456447, #a8c9a4);
+    --dr-accent-strong: light-dark(#28482c, #c6e7c0);
+    --dr-accent-soft: light-dark(#e7efe4, #344234);
+    --dr-accent-ink: light-dark(#28482c, #e5f2df);
+    --dr-warm: light-dark(#f1e6d6, #493d30);
+    --dr-shadow: light-dark(0 14px 40px rgba(45, 48, 39, .08), 0 14px 40px rgba(0, 0, 0, .24));
+    color-scheme: light dark;
+    display: grid;
+    grid-template-columns: 184px minmax(0, 1fr);
+    min-height: 720px;
+    background: var(--dr-bg);
+    color: var(--dr-text);
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;PingFang SC&quot;, sans-serif;
+    border: 1px solid var(--dr-border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  #daily-review-app * { box-sizing: border-box; }
+  #daily-review-app button, #daily-review-app input, #daily-review-app select, #daily-review-app textarea { font: inherit; }
+  #daily-review-app button { color: inherit; }
+  #daily-review-app .dr-sidebar { background: var(--dr-surface); border-right: 1px solid var(--dr-border); padding: 24px 14px 16px; display: flex; flex-direction: column; gap: 28px; }
+  #daily-review-app .dr-brand { display: flex; align-items: center; gap: 10px; padding: 0 10px; font-weight: 500; letter-spacing: .08em; }
+  #daily-review-app .dr-brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: var(--dr-accent-ink); background: var(--dr-accent-soft); }
+  #daily-review-app .dr-nav { display: grid; gap: 6px; }
+  #daily-review-app .dr-nav-item { width: 100%; display: flex; align-items: center; gap: 11px; border: 0; background: transparent; border-radius: 10px; padding: 10px 12px; cursor: pointer; color: var(--dr-muted); text-align: left; }
+  #daily-review-app .dr-nav-item:hover { background: var(--dr-surface-2); color: var(--dr-text); }
+  #daily-review-app .dr-nav-item.is-active { background: var(--dr-accent-soft); color: var(--dr-accent-ink); font-weight: 500; }
+  #daily-review-app .dr-sidebar-foot { margin-top: auto; }
+  #daily-review-app .dr-profile { width: 100%; border: 0; background: transparent; display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; text-align: left; padding: 8px; border-radius: 12px; cursor: pointer; }
+  #daily-review-app .dr-profile:hover { background: var(--dr-surface-2); }
+  #daily-review-app .dr-profile strong, #daily-review-app .dr-profile small { display: block; }
+  #daily-review-app .dr-profile strong { font-weight: 500; }
+  #daily-review-app .dr-profile small { color: var(--dr-muted); margin-top: 2px; }
+  #daily-review-app .dr-avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--dr-warm); }
+  #daily-review-app .dr-main { min-width: 0; padding: 32px 36px 38px; }
+  #daily-review-app .dr-view { display: none; }
+  #daily-review-app .dr-view.is-visible { display: block; }
+  #daily-review-app .dr-topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+  #daily-review-app h1, #daily-review-app h2, #daily-review-app h3, #daily-review-app p { margin: 0; }
+  #daily-review-app h1 { font-size: clamp(24px, 3vw, 32px); line-height: 1.25; font-weight: 500; letter-spacing: -.03em; }
+  #daily-review-app h2 { font-size: 16px; line-height: 1.35; font-weight: 500; }
+  #daily-review-app h3 { font-size: 14px; line-height: 1.4; font-weight: 500; }
+  #daily-review-app p { color: var(--dr-muted); line-height: 1.5; }
+  #daily-review-app .dr-eyebrow { font-size: 13px; margin-bottom: 5px; }
+  #daily-review-app .dr-icon-button { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--dr-border); border-radius: 11px; background: var(--dr-surface); cursor: pointer; position: relative; }
+  #daily-review-app .dr-icon-button:hover { background: var(--dr-surface-2); }
+  #daily-review-app .dr-notification-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--dr-accent); right: 8px; top: 8px; box-shadow: 0 0 0 2px var(--dr-surface); }
+  #daily-review-app .dr-focus-card { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 22px 24px; background: var(--dr-accent-soft); color: var(--dr-accent-ink); border-radius: 16px; margin-bottom: 18px; }
+  #daily-review-app .dr-focus-copy h2 { font-size: 19px; margin: 7px 0 3px; }
+  #daily-review-app .dr-focus-copy p { color: var(--dr-accent-ink); opacity: .72; }
+  #daily-review-app .dr-kicker { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; }
+  #daily-review-app .dr-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dr-accent-strong); box-shadow: 0 0 0 4px color-mix(in srgb, var(--dr-accent-strong), transparent 80%); }
+  #daily-review-app .dr-dnd { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; cursor: pointer; }
+  #daily-review-app .dr-dnd span { display: flex; align-items: center; gap: 6px; }
+  #daily-review-app .dr-timer-area { display: flex; align-items: center; gap: 16px; }
+  #daily-review-app .dr-timer-stack { display: grid; justify-items: end; gap: 2px; }
+  #daily-review-app .dr-timer-stack &gt; span { font-size: 10px; opacity: .7; }
+  #daily-review-app .dr-timer { min-width: 150px; text-align: right; font-size: 32px; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+  #daily-review-app .dr-timer-actions { display: flex; gap: 8px; }
+  #daily-review-app .dr-round-button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer; background: var(--dr-surface); color: var(--dr-accent-ink); }
+  #daily-review-app .dr-round-button:hover { transform: translateY(-1px); }
+  #daily-review-app .dr-finish-focus { background: var(--dr-accent-strong); color: var(--dr-surface); }
+  #daily-review-app .dr-today-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, .8fr); gap: 18px; }
+  #daily-review-app .dr-panel { background: var(--dr-surface); border: 1px solid var(--dr-border); border-radius: 16px; box-shadow: var(--dr-shadow); }
+  #daily-review-app .dr-plan-panel, #daily-review-app .dr-schedule-panel { padding: 20px; }
+  #daily-review-app .dr-section-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  #daily-review-app .dr-section-head p { font-size: 12px; margin-top: 4px; }
+  #daily-review-app .dr-section-actions { display: flex; align-items: center; gap: 7px; }
+  #daily-review-app .dr-add-button, #daily-review-app .dr-start-button, #daily-review-app .dr-template-action, #daily-review-app .dr-move-button { border: 1px solid var(--dr-border); border-radius: 9px; background: var(--dr-surface); padding: 7px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  #daily-review-app .dr-add-button:hover, #daily-review-app .dr-start-button:hover, #daily-review-app .dr-template-action:hover, #daily-review-app .dr-move-button:hover { border-color: var(--dr-accent); color: var(--dr-accent-ink); }
+  #daily-review-app .dr-primary-button { border: 0; border-radius: 10px; background: var(--dr-accent-strong); color: var(--dr-surface); padding: 9px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
+  #daily-review-app .dr-primary-button:hover { filter: brightness(1.08); }
+  #daily-review-app .dr-add-form { margin-top: 14px; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) 250px auto; gap: 10px; align-items: end; background: var(--dr-surface-2); border-radius: 12px; }
+  #daily-review-app .dr-add-form label { display: grid; gap: 5px; font-size: 12px; color: var(--dr-muted); }
+  #daily-review-app .dr-add-form input, #daily-review-app .dr-add-form select { width: 100%; min-width: 0; border: 1px solid var(--dr-border); border-radius: 8px; background: var(--dr-surface); color: var(--dr-text); padding: 8px; }
+  #daily-review-app .dr-estimate-control { display: flex; gap: 6px; }
+  #daily-review-app .dr-estimate-control select { flex: 1; }
+  #daily-review-app .dr-estimate-control button { border: 1px solid var(--dr-accent); border-radius: 8px; background: var(--dr-accent-soft); color: var(--dr-accent-ink); padding: 7px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  #daily-review-app .dr-estimate-field small { color: var(--dr-accent-ink); line-height: 1.4; }
+  #daily-review-app .dr-estimate-field small[hidden] { display: none; }
+  #daily-review-app .dr-task-list { display: grid; margin-top: 10px; }
+  #daily-review-app .dr-task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 15px 2px; border-top: 1px solid var(--dr-border); }
+  #daily-review-app .dr-task:first-child { border-top: 0; }
+  #daily-review-app .dr-task.is-done h3 { text-decoration: line-through; color: var(--dr-muted); }
+  #daily-review-app .dr-task.is-running { background: linear-gradient(90deg, var(--dr-accent-soft), transparent); border-radius: 10px; padding-left: 10px; padding-right: 8px; border-top-color: transparent; }
+  #daily-review-app .dr-check input { position: absolute; opacity: 0; }
+  #daily-review-app .dr-check span { width: 21px; height: 21px; display: grid; place-items: center; border: 1px solid var(--dr-border); border-radius: 7px; cursor: pointer; color: transparent; }
+  #daily-review-app .dr-check input:checked + span { background: var(--dr-accent-strong); color: var(--dr-surface); border-color: var(--dr-accent-strong); }
+  #daily-review-app .dr-task-copy p { font-size: 12px; margin-top: 3px; }
+  #daily-review-app .dr-task-status { font-size: 12px; color: var(--dr-accent-ink); background: var(--dr-accent-soft); padding: 5px 8px; border-radius: 999px; white-space: nowrap; }
+  #daily-review-app .dr-task-more { border: 0; background: transparent; color: var(--dr-muted); cursor: pointer; padding: 5px; }
+  #daily-review-app .dr-agenda { position: relative; margin-top: 18px; display: grid; grid-template-columns: 45px 1fr; row-gap: 8px; }
+  #daily-review-app .dr-time-label { color: var(--dr-muted); font-size: 11px; padding-top: 3px; }
+  #daily-review-app .dr-time-line { border-top: 1px solid var(--dr-border); margin-top: 8px; }
+  #daily-review-app .dr-meeting { grid-column: 2; padding: 11px 12px; border-left: 3px solid var(--dr-accent); background: var(--dr-accent-soft); border-radius: 0 9px 9px 0; }
+  #daily-review-app .dr-meeting &gt; span, #daily-review-app .dr-meeting p { font-size: 11px; }
+  #daily-review-app .dr-meeting h3 { margin: 3px 0 1px; }
+  #daily-review-app .dr-meeting-secondary { background: var(--dr-warm); border-left-color: color-mix(in srgb, var(--dr-text), transparent 35%); }
+  #daily-review-app .dr-people { display: flex; margin-top: 8px; }
+  #daily-review-app .dr-people span { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 50%; background: var(--dr-surface); border: 2px solid var(--dr-accent-soft); font-size: 9px; margin-left: -4px; }
+  #daily-review-app .dr-people span:first-child { margin-left: 0; }
+  #daily-review-app .dr-now { grid-column: 1 / -1; display: grid; grid-template-columns: 45px 1fr; color: var(--dr-accent-ink); font-size: 10px; align-items: center; }
+  #daily-review-app .dr-now i { display: block; height: 1px; background: var(--dr-accent); position: relative; }
+  #daily-review-app .dr-now i:before { content: &quot;&quot;; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--dr-accent); left: 0; top: -3px; }
+  #daily-review-app .dr-board-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 15px; }
+  #daily-review-app .dr-board-tools p { font-size: 12px; }
+  #daily-review-app .dr-filter-group { display: flex; gap: 4px; padding: 3px; background: var(--dr-surface); border: 1px solid var(--dr-border); border-radius: 10px; }
+  #daily-review-app .dr-filter-group button { border: 0; background: transparent; padding: 6px 11px; color: var(--dr-muted); border-radius: 7px; cursor: pointer; }
+  #daily-review-app .dr-filter-group button.is-selected { background: var(--dr-accent-soft); color: var(--dr-accent-ink); }
+  #daily-review-app .dr-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+  #daily-review-app .dr-board-column { background: color-mix(in srgb, var(--dr-surface), transparent 15%); border: 1px solid var(--dr-border); border-radius: 14px; padding: 12px; min-width: 0; }
+  #daily-review-app .dr-board-column &gt; header { display: flex; justify-content: space-between; align-items: center; padding: 3px 3px 11px; }
+  #daily-review-app .dr-board-column &gt; header span { font-size: 11px; color: var(--dr-muted); background: var(--dr-surface-2); min-width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; }
+  #daily-review-app .dr-board-card { background: var(--dr-surface); border: 1px solid var(--dr-border); border-radius: 11px; padding: 13px; margin-bottom: 9px; }
+  #daily-review-app .dr-board-card h3 { margin: 9px 0 4px; }
+  #daily-review-app .dr-board-card p { font-size: 11px; }
+  #daily-review-app .dr-board-card.is-accent { border-color: var(--dr-accent); box-shadow: inset 3px 0 0 var(--dr-accent); }
+  #daily-review-app .dr-board-card.is-complete h3 { text-decoration: line-through; color: var(--dr-muted); }
+  #daily-review-app .dr-tag { font-size: 10px; color: var(--dr-muted); background: var(--dr-surface-2); padding: 4px 7px; border-radius: 999px; }
+  #daily-review-app .dr-card-progress { height: 4px; background: var(--dr-border); border-radius: 999px; overflow: hidden; margin-top: 12px; }
+  #daily-review-app .dr-card-progress i { display: block; height: 100%; background: var(--dr-accent); }
+  #daily-review-app .dr-column-add { width: 100%; border: 0; background: transparent; color: var(--dr-muted); padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  #daily-review-app .dr-review-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(230px, .65fr); gap: 18px; align-items: start; }
+  #daily-review-app .dr-review-card { padding: 22px; }
+  #daily-review-app .dr-saved-state { display: flex; align-items: center; gap: 6px; color: var(--dr-muted); font-size: 12px; }
+  #daily-review-app .dr-review-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--dr-border); border: 1px solid var(--dr-border); border-radius: 12px; overflow: hidden; }
+  #daily-review-app .dr-review-summary &gt; div { background: var(--dr-surface-2); padding: 14px; display: grid; gap: 3px; }
+  #daily-review-app .dr-review-summary strong { font-size: 21px; font-weight: 500; }
+  #daily-review-app .dr-review-summary span { color: var(--dr-muted); font-size: 11px; }
+  #daily-review-app .dr-review-section { padding-top: 22px; margin-top: 20px; border-top: 1px solid var(--dr-border); }
+  #daily-review-app .dr-review-task { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--dr-border); font-size: 13px; }
+  #daily-review-app .dr-review-task label { display: flex; align-items: center; gap: 8px; }
+  #daily-review-app .dr-review-task &gt; span { color: var(--dr-muted); font-size: 11px; }
+  #daily-review-app .dr-review-section &gt; label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  #daily-review-app .dr-review-section &gt; label strong { font-weight: 500; }
+  #daily-review-app .dr-review-section &gt; label span { color: var(--dr-muted); font-size: 11px; }
+  #daily-review-app .dr-carry-setting { display: grid; gap: 4px; color: var(--dr-muted); font-size: 10px; }
+  #daily-review-app .dr-carry-setting select { border: 1px solid var(--dr-border); border-radius: 8px; background: var(--dr-surface); color: var(--dr-text); padding: 7px 9px; }
+  #daily-review-app textarea { width: 100%; resize: vertical; border: 1px solid var(--dr-border); border-radius: 11px; background: var(--dr-surface-2); color: var(--dr-text); padding: 12px; line-height: 1.55; }
+  #daily-review-app .dr-review-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+  #daily-review-app .dr-review-actions &gt; span { color: var(--dr-muted); font-size: 12px; }
+  #daily-review-app .dr-insight-panel { padding: 20px; }
+  #daily-review-app .dr-insight-panel .dr-kicker { color: var(--dr-accent-ink); }
+  #daily-review-app .dr-insight-panel h2 { margin: 15px 0 7px; }
+  #daily-review-app .dr-insight-panel p { font-size: 12px; }
+  #daily-review-app .dr-bars { height: 150px; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 8px; margin-top: 24px; border-bottom: 1px solid var(--dr-border); }
+  #daily-review-app .dr-bars span { display: block; background: var(--dr-border); border-radius: 6px 6px 0 0; }
+  #daily-review-app .dr-bars span.is-current { background: var(--dr-accent); }
+  #daily-review-app .dr-bar-labels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 7px; color: var(--dr-muted); font-size: 9px; text-align: center; }
+  #daily-review-app .dr-reminder-settings { display: flex; align-items: center; justify-content: space-between; gap: 20px; background: var(--dr-accent-soft); color: var(--dr-accent-ink); border: 1px solid color-mix(in srgb, var(--dr-accent), transparent 55%); border-radius: 15px; padding: 16px 18px; margin-bottom: 15px; }
+  #daily-review-app .dr-reminder-title { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  #daily-review-app .dr-reminder-title &gt; span { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; background: var(--dr-surface); }
+  #daily-review-app .dr-reminder-title p { color: var(--dr-accent-ink); opacity: .72; font-size: 11px; margin-top: 3px; }
+  #daily-review-app .dr-reminder-fields { display: flex; align-items: end; gap: 9px; }
+  #daily-review-app .dr-reminder-fields label { display: grid; gap: 4px; font-size: 10px; }
+  #daily-review-app .dr-reminder-fields input { width: 102px; border: 1px solid var(--dr-border); border-radius: 8px; background: var(--dr-surface); color: var(--dr-text); padding: 7px 8px; }
+  #daily-review-app .dr-template-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+  #daily-review-app .dr-template-card, #daily-review-app .dr-template-create { position: relative; min-width: 0; background: var(--dr-surface); border: 1px solid var(--dr-border); border-radius: 15px; padding: 19px; text-align: left; }
+  #daily-review-app .dr-template-card.is-featured { border-color: var(--dr-accent); }
+  #daily-review-app .dr-template-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--dr-accent-soft); color: var(--dr-accent-ink); margin-bottom: 17px; }
+  #daily-review-app .dr-default-badge { position: absolute; top: 18px; right: 18px; background: var(--dr-accent-soft); color: var(--dr-accent-ink); padding: 4px 7px; border-radius: 999px; font-size: 10px; }
+  #daily-review-app .dr-template-card &gt; p { font-size: 11px; margin-top: 6px; min-height: 34px; }
+  #daily-review-app .dr-template-card ul { margin: 16px 0; padding-left: 17px; color: var(--dr-muted); font-size: 12px; line-height: 1.8; }
+  #daily-review-app .dr-template-action { width: 100%; justify-content: center; }
+  #daily-review-app .dr-template-create { grid-column: 1 / -1; min-height: 108px; border-style: dashed; color: var(--dr-muted); cursor: pointer; display: grid; place-items: center; align-content: center; gap: 4px; }
+  #daily-review-app .dr-template-create:hover { border-color: var(--dr-accent); color: var(--dr-accent-ink); }
+  #daily-review-app .dr-template-create strong { font-weight: 500; }
+  #daily-review-app .dr-template-create span { font-size: 11px; }
+  #daily-review-app .dr-bulk-dialog { width: min(560px, calc(100% - 32px)); max-width: none; border: 1px solid var(--dr-border); border-radius: 17px; background: var(--dr-surface); color: var(--dr-text); padding: 22px; box-shadow: var(--dr-shadow); }
+  #daily-review-app .dr-bulk-dialog::backdrop { background: light-dark(rgba(25, 27, 23, .42), rgba(0, 0, 0, .62)); }
+  #daily-review-app .dr-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  #daily-review-app .dr-dialog-head p { font-size: 11px; margin-bottom: 4px; }
+  #daily-review-app .dr-dialog-head h2 { font-size: 20px; }
+  #daily-review-app .dr-bulk-dates { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 10px; margin-top: 20px; }
+  #daily-review-app .dr-bulk-dates label { display: grid; gap: 5px; color: var(--dr-muted); font-size: 11px; }
+  #daily-review-app .dr-bulk-dates input, #daily-review-app .dr-bulk-dates select { width: 100%; min-width: 0; border: 1px solid var(--dr-border); border-radius: 8px; background: var(--dr-surface-2); color: var(--dr-text); padding: 8px; }
+  #daily-review-app .dr-bulk-tasks { border: 0; padding: 0; margin: 20px 0 0; }
+  #daily-review-app .dr-bulk-tasks legend { font-weight: 500; margin-bottom: 7px; }
+  #daily-review-app .dr-bulk-tasks &gt; label { display: flex; align-items: center; gap: 9px; padding: 10px 2px; border-bottom: 1px solid var(--dr-border); cursor: pointer; }
+  #daily-review-app .dr-bulk-tasks &gt; label &gt; span { display: grid; gap: 2px; }
+  #daily-review-app .dr-bulk-tasks strong { font-weight: 400; }
+  #daily-review-app .dr-bulk-tasks small { color: var(--dr-muted); }
+  #daily-review-app .dr-skip-existing { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 12px; cursor: pointer; }
+  #daily-review-app .dr-bulk-summary { display: flex; align-items: center; gap: 8px; background: var(--dr-accent-soft); color: var(--dr-accent-ink); border-radius: 10px; padding: 10px 12px; margin-top: 15px; font-size: 12px; }
+  #daily-review-app .dr-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  #daily-review-app .dr-toast { position: absolute; right: 24px; bottom: 24px; background: var(--dr-text); color: var(--dr-bg); padding: 10px 14px; border-radius: 10px; display: flex; align-items: center; gap: 7px; box-shadow: var(--dr-shadow); }
+  #daily-review-app .dr-toast[hidden] { display: none; }
+  #daily-review-app:has(.dr-toast:not([hidden])) { position: relative; }
+  @media (max-width: 850px) {
+    #daily-review-app { grid-template-columns: 72px minmax(0, 1fr); }
+    #daily-review-app .dr-sidebar { padding-inline: 10px; }
+    #daily-review-app .dr-brand { justify-content: center; padding: 0; }
+    #daily-review-app .dr-brand &gt; span:last-child, #daily-review-app .dr-nav-item span, #daily-review-app .dr-profile &gt; span:not(.dr-avatar), #daily-review-app .dr-profile &gt; svg { display: none; }
+    #daily-review-app .dr-nav-item { justify-content: center; padding: 11px; }
+    #daily-review-app .dr-profile { display: flex; justify-content: center; }
+    #daily-review-app .dr-main { padding: 26px 22px 30px; }
+    #daily-review-app .dr-today-grid, #daily-review-app .dr-review-layout { grid-template-columns: 1fr; }
+    #daily-review-app .dr-reminder-settings { align-items: flex-start; flex-direction: column; }
+    #daily-review-app .dr-template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #daily-review-app .dr-board { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    #daily-review-app { display: block; border-radius: 14px; min-height: 0; }
+    #daily-review-app .dr-sidebar { border-right: 0; border-bottom: 1px solid var(--dr-border); padding: 10px 12px; display: flex; flex-direction: row; align-items: center; gap: 10px; }
+    #daily-review-app .dr-brand { display: none; }
+    #daily-review-app .dr-nav { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); }
+    #daily-review-app .dr-nav-item { padding: 9px; }
+    #daily-review-app .dr-sidebar-foot { display: none; }
+    #daily-review-app .dr-main { padding: 20px 14px 24px; }
+    #daily-review-app .dr-topbar { align-items: flex-start; }
+    #daily-review-app .dr-focus-card { align-items: flex-start; flex-direction: column; }
+    #daily-review-app .dr-timer-area { width: 100%; justify-content: space-between; }
+    #daily-review-app .dr-timer-stack { justify-items: start; }
+    #daily-review-app .dr-timer { text-align: left; }
+    #daily-review-app .dr-section-head { align-items: flex-start; }
+    #daily-review-app .dr-section-actions { align-items: stretch; flex-direction: column; }
+    #daily-review-app .dr-add-form { grid-template-columns: 1fr; }
+    #daily-review-app .dr-task { grid-template-columns: auto minmax(0, 1fr) auto; }
+    #daily-review-app .dr-task-status, #daily-review-app .dr-start-button { grid-column: 2; justify-self: start; }
+    #daily-review-app .dr-task-more { grid-column: 3; grid-row: 1; }
+    #daily-review-app .dr-review-summary { grid-template-columns: 1fr; }
+    #daily-review-app .dr-review-section .dr-section-head { align-items: flex-start; flex-direction: column; }
+    #daily-review-app .dr-review-task { align-items: flex-start; flex-direction: column; }
+    #daily-review-app .dr-review-actions { align-items: stretch; flex-direction: column; }
+    #daily-review-app .dr-reminder-fields { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+    #daily-review-app .dr-reminder-fields input { width: 100%; }
+    #daily-review-app .dr-reminder-fields .dr-primary-button { grid-column: 1 / -1; }
+    #daily-review-app .dr-template-grid { grid-template-columns: 1fr; }
+    #daily-review-app .dr-board-tools { align-items: flex-start; flex-direction: column; }
+    #daily-review-app .dr-bulk-dialog { padding: 17px; }
+    #daily-review-app .dr-bulk-dates { grid-template-columns: 1fr 1fr; }
+    #daily-review-app .dr-bulk-dates label:last-child { grid-column: 1 / -1; }
+  }
+&lt;/style&gt;
+
+&lt;script&gt;
+  (() =&gt; {
+    const root = document.getElementById(&#x27;daily-review-app&#x27;);
+    const navItems = root.querySelectorAll(&#x27;.dr-nav-item&#x27;);
+    const panels = root.querySelectorAll(&#x27;.dr-view&#x27;);
+    const toast = root.querySelector(&#x27;#dr-toast&#x27;);
+    let toastTimer;
+    const showToast = (message) =&gt; {
+      toast.querySelector(&#x27;span&#x27;).textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() =&gt; { toast.hidden = true; }, 2200);
+    };
+
+    navItems.forEach((item) =&gt; {
+      item.addEventListener(&#x27;click&#x27;, () =&gt; {
+        navItems.forEach((node) =&gt; { node.classList.remove(&#x27;is-active&#x27;); node.setAttribute(&#x27;aria-pressed&#x27;, &#x27;false&#x27;); });
+        panels.forEach((panel) =&gt; panel.classList.remove(&#x27;is-visible&#x27;));
+        item.classList.add(&#x27;is-active&#x27;);
+        item.setAttribute(&#x27;aria-pressed&#x27;, &#x27;true&#x27;);
+        root.querySelector(`[data-panel=&quot;${item.dataset.view}&quot;]`).classList.add(&#x27;is-visible&#x27;);
+      });
+    });
+
+    const refreshDone = () =&gt; {
+      const checked = root.querySelectorAll(&#x27;#dr-task-list .dr-check input:checked&#x27;).length;
+      root.querySelector(&#x27;#dr-done-count&#x27;).textContent = checked;
+    };
+    root.querySelectorAll(&#x27;#dr-task-list .dr-check input&#x27;).forEach((input) =&gt; {
+      input.addEventListener(&#x27;change&#x27;, () =&gt; {
+        input.closest(&#x27;.dr-task&#x27;).classList.toggle(&#x27;is-done&#x27;, input.checked);
+        refreshDone();
+      });
+    });
+
+    const addForm = root.querySelector(&#x27;#dr-add-form&#x27;);
+    root.querySelector(&#x27;#dr-show-add&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+      addForm.hidden = !addForm.hidden;
+      if (!addForm.hidden) root.querySelector(&#x27;#dr-new-task&#x27;).focus();
+    });
+    const estimateNote = root.querySelector(&#x27;#dr-estimate-note&#x27;);
+    root.querySelector(&#x27;#dr-auto-estimate&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+      const title = root.querySelector(&#x27;#dr-new-task&#x27;).value.trim();
+      if (!title) {
+        estimateNote.textContent = &#x27;先输入任务名称，再根据历史记录估时&#x27;;
+        estimateNote.hidden = false;
+        root.querySelector(&#x27;#dr-new-task&#x27;).focus();
+        return;
+      }
+      let suggestion = &#x27;45 分钟&#x27;;
+      let evidence = &#x27;基于 6 次相似任务，中位数 43 分钟&#x27;;
+      if (/邮件|消息|回复/.test(title)) {
+        suggestion = &#x27;30 分钟&#x27;;
+        evidence = &#x27;基于 8 次相似任务，中位数 26 分钟&#x27;;
+      } else if (/写|方案|季度|报告/.test(title)) {
+        suggestion = &#x27;2 小时&#x27;;
+        evidence = &#x27;基于 5 次写作任务，中位数 1 小时 52 分&#x27;;
+      } else if (/会议|沟通|评审/.test(title)) {
+        suggestion = &#x27;1 小时&#x27;;
+        evidence = &#x27;基于 7 次相似任务，中位数 55 分钟&#x27;;
+      }
+      root.querySelector(&#x27;#dr-new-time&#x27;).value = suggestion;
+      estimateNote.textContent = `建议 ${suggestion} · ${evidence}，你仍可修改`;
+      estimateNote.hidden = false;
+    });
+    addForm.addEventListener(&#x27;submit&#x27;, (event) =&gt; {
+      event.preventDefault();
+      const title = root.querySelector(&#x27;#dr-new-task&#x27;).value.trim();
+      const time = root.querySelector(&#x27;#dr-new-time&#x27;).value;
+      if (!title) return;
+      const task = document.createElement(&#x27;article&#x27;);
+      task.className = &#x27;dr-task&#x27;;
+      task.innerHTML = `&lt;label class=&quot;dr-check&quot;&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;check&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/label&gt;&lt;div class=&quot;dr-task-copy&quot;&gt;&lt;h3&gt;&lt;/h3&gt;&lt;p&gt;&lt;/p&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;dr-start-button&quot;&gt;开始&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;dr-task-more&quot; aria-label=&quot;更多操作&quot;&gt;&lt;i data-lucide=&quot;ellipsis&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;`;
+      task.querySelector(&#x27;h3&#x27;).textContent = title;
+      task.querySelector(&#x27;p&#x27;).textContent = `${time} · 自定义`;
+      task.querySelector(&#x27;input&#x27;).addEventListener(&#x27;change&#x27;, (event) =&gt; { task.classList.toggle(&#x27;is-done&#x27;, event.target.checked); refreshDone(); });
+      root.querySelector(&#x27;#dr-task-list&#x27;).appendChild(task);
+      root.querySelector(&#x27;#dr-new-task&#x27;).value = &#x27;&#x27;;
+      estimateNote.hidden = true;
+      addForm.hidden = true;
+      if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      showToast(&#x27;任务已加入今天&#x27;);
+    });
+
+    let seconds = 2 * 60 + 42;
+    let running = true;
+    let estimateNoticeShown = false;
+    const timerDisplay = root.querySelector(&#x27;.dr-timer&#x27;);
+    const timerToggle = root.querySelector(&#x27;.dr-timer-toggle&#x27;);
+    const renderTimer = () =&gt; {
+      const hours = Math.floor(seconds / 3600).toString().padStart(2, &#x27;0&#x27;);
+      const minutes = Math.floor((seconds % 3600) / 60).toString().padStart(2, &#x27;0&#x27;);
+      const secs = (seconds % 60).toString().padStart(2, &#x27;0&#x27;);
+      timerDisplay.textContent = `${hours}:${minutes}:${secs}`;
+    };
+    setInterval(() =&gt; {
+      if (!running) return;
+      seconds += 1;
+      renderTimer();
+      if (seconds &gt;= 45 * 60 &amp;&amp; !estimateNoticeShown) {
+        estimateNoticeShown = true;
+        showToast(&#x27;已达到预计 45 分钟，可以继续或完成任务&#x27;);
+      }
+    }, 1000);
+    timerToggle.addEventListener(&#x27;click&#x27;, () =&gt; {
+      running = !running;
+      timerToggle.innerHTML = running ? &#x27;&lt;i data-lucide=&quot;pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27; : &#x27;&lt;i data-lucide=&quot;play&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27;;
+      timerToggle.setAttribute(&#x27;aria-label&#x27;, running ? &#x27;暂停计时&#x27; : &#x27;继续计时&#x27;);
+      if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+    });
+    root.querySelector(&#x27;.dr-finish-focus&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+      running = false;
+      root.querySelector(&#x27;.dr-focus-card&#x27;).style.display = &#x27;none&#x27;;
+      const runningTask = root.querySelector(&#x27;.dr-task.is-running&#x27;);
+      runningTask.classList.remove(&#x27;is-running&#x27;);
+      runningTask.classList.add(&#x27;is-done&#x27;);
+      runningTask.querySelector(&#x27;input&#x27;).checked = true;
+      runningTask.querySelector(&#x27;.dr-task-status&#x27;).textContent = &#x27;已完成&#x27;;
+      refreshDone();
+      showToast(&#x27;任务已完成，专注记录已保存&#x27;);
+    });
+
+    root.addEventListener(&#x27;click&#x27;, (event) =&gt; {
+      const start = event.target.closest(&#x27;.dr-start-button&#x27;);
+      if (start) showToast(root.querySelector(&#x27;#dr-dnd&#x27;).checked ? &#x27;计时已开始 · 记得开启勿扰模式&#x27; : &#x27;计时已开始&#x27;);
+    });
+    root.querySelector(&#x27;#dr-add-meeting&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; showToast(&#x27;会议将手动添加，不连接外部日历&#x27;));
+    root.querySelector(&#x27;#dr-carry-mode&#x27;).addEventListener(&#x27;change&#x27;, (event) =&gt; showToast(`未完成任务：${event.target.value}`));
+    root.querySelector(&#x27;#dr-save-reminders&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+      const morning = root.querySelector(&#x27;#dr-morning-time&#x27;).value || &#x27;10:30&#x27;;
+      const evening = root.querySelector(&#x27;#dr-evening-time&#x27;).value || &#x27;20:00&#x27;;
+      root.querySelector(&#x27;#dr-morning-summary&#x27;).textContent = `每日 ${morning} 提醒`;
+      root.querySelector(&#x27;#dr-evening-summary&#x27;).textContent = `每日 ${evening} 提醒`;
+      showToast(`提醒已更新：${morning} / ${evening}`);
+    });
+    const bulkDialog = root.querySelector(&#x27;#dr-bulk-dialog&#x27;);
+    const closeBulk = () =&gt; bulkDialog.close();
+    const updateBulkSummary = () =&gt; {
+      const start = new Date(`${root.querySelector(&#x27;#dr-bulk-start&#x27;).value}T00:00:00`);
+      const end = new Date(`${root.querySelector(&#x27;#dr-bulk-end&#x27;).value}T00:00:00`);
+      const validRange = Number.isFinite(start.getTime()) &amp;&amp; Number.isFinite(end.getTime()) &amp;&amp; end &gt;= start;
+      const days = validRange ? Math.floor((end - start) / 86400000) + 1 : 0;
+      const tasks = root.querySelectorAll(&#x27;.dr-bulk-tasks input:checked&#x27;).length;
+      root.querySelector(&#x27;#dr-bulk-summary&#x27;).textContent = validRange ? `将为 ${days} 天补录 ${days * tasks} 条任务` : &#x27;请选择有效的日期范围&#x27;;
+      root.querySelector(&#x27;#dr-confirm-bulk&#x27;).disabled = !validRange || tasks === 0;
+    };
+    root.querySelector(&#x27;#dr-bulk-add&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+      updateBulkSummary();
+      bulkDialog.showModal();
+    });
+    root.querySelector(&#x27;#dr-close-bulk&#x27;).addEventListener(&#x27;click&#x27;, closeBulk);
+    root.querySelector(&#x27;#dr-cancel-bulk&#x27;).addEventListener(&#x27;click&#x27;, closeBulk);
+    root.querySelectorAll(&#x27;#dr-bulk-start, #dr-bulk-end, .dr-bulk-tasks input&#x27;).forEach((input) =&gt; input.addEventListener(&#x27;change&#x27;, updateBulkSummary));
+    root.querySelector(&#x27;#dr-confirm-bulk&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+      const summary = root.querySelector(&#x27;#dr-bulk-summary&#x27;).textContent;
+      closeBulk();
+      showToast(summary.replace(&#x27;将为&#x27;, &#x27;已为&#x27;).replace(&#x27;补录&#x27;, &#x27;补录了&#x27;));
+    });
+    root.querySelector(&#x27;#dr-save-review&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; showToast(&#x27;今日复盘已完成，晚安&#x27;));
+    root.querySelectorAll(&#x27;.dr-filter-group button&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+      root.querySelectorAll(&#x27;.dr-filter-group button&#x27;).forEach((node) =&gt; node.classList.remove(&#x27;is-selected&#x27;));
+      button.classList.add(&#x27;is-selected&#x27;);
+    }));
+  })();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>
