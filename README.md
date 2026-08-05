@@ -19,12 +19,21 @@
 
 ## 构建
 
+需要安装包含 macOS SDK 的 Xcode 或 Command Line Tools。构建脚本会自动选择本机可用的工具链，不依赖固定 SDK 版本，也同时适配 Apple 芯片和 Intel Mac。
+
 ```bash
 ./scripts/build-app.sh
 ```
 
 构建结果位于 `dist/一日.app`。首次保存提醒时，macOS 会请求通知权限。
 
-当前构建产物适用于 Apple 芯片 Mac，并使用本地临时签名，适合个人试用。
+构建产物适用于执行脚本的当前 Mac 架构，并使用本地临时签名，适合个人试用。
+
+如果提示“没有找到可用的 macOS SDK”，请安装或更新 Xcode，然后执行：
+
+```bash
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -runFirstLaunch
+```
 
 应用数据保存在 `~/Library/Application Support/YiRi/data.json`。
