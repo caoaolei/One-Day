@@ -12,15 +12,16 @@ struct AppStoreChecks {
         suite.run("损坏数据先备份再恢复", suite.checkCorruptDataRecovery)
         suite.run("首次启动不注入演示活动", suite.checkCleanFirstLaunch)
         suite.run("偶数历史记录使用平均中位数", suite.checkEvenMedian)
-        suite.run("完成任务按日期分组并限制最近二十条", suite.checkCompletedGrouping)
+        suite.run("完成任务按今天与全部历史分组", suite.checkCompletedGrouping)
         suite.run("完成与恢复立即更新看板分组", suite.checkCompleteAndRestore)
         suite.run("零计时任务显示为手动完成", suite.checkCompletionEffortText)
+        suite.run("拖放任务同步更新日期与完成状态", suite.checkBoardLaneMoves)
 
         if suite.failureCount > 0 {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 9 checks")
+        print("PASSED: 10 checks")
     }
 }
 
@@ -158,13 +159,10 @@ private struct CheckSuite {
         let completedToday = context.store.completedToday(referenceDate: context.clock.now)
         let earlier = context.store.earlierCompleted(referenceDate: context.clock.now)
         try expect(completedToday.map(\.id) == [todayTask.id], "逾期任务今天完成后没有计入今日成果")
-        try expect(earlier.count == 20, "更早完成没有限制为最近 20 条")
+        try expect(earlier.count == 26, "历史完成列表没有包含全部记录")
         try expect(context.store.earlierCompletedCount(referenceDate: context.clock.now) == 26, "更早完成总数被最近 20 条截断")
         try expect(earlier.first?.title == "更早 1", "更早完成没有按完成时间倒序")
-        try expect(!earlier.contains(where: { $0.id == legacyTask.id }), "旧数据应在更早分组，但需排在有时间记录之后")
-
-        let allEarlier = context.store.earlierCompleted(referenceDate: context.clock.now, limit: 30)
-        try expect(allEarlier.last?.id == legacyTask.id, "缺少完成时间的旧数据没有归入更早完成")
+        try expect(earlier.last?.id == legacyTask.id, "缺少完成时间的旧数据没有归入历史完成")
     }
 
     func checkCompleteAndRestore() throws {
@@ -188,6 +186,38 @@ private struct CheckSuite {
         try expect(task.completionEffortText == "手动完成", "零计时显示了误导性的 0 分钟")
         task.actualSeconds = 120
         try expect(task.completionEffortText == "专注 2 分钟", "实际专注用时文案不正确")
+    }
+
+    func checkBoardLaneMoves() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        context.store.addTask(title: "拖放任务", category: "测试", estimatedMinutes: 10, date: context.clock.now.addingDays(3))
+        let task = try require(context.store.tasks.first, "找不到拖放任务")
+
+        try expect(context.store.moveTask(task.id, to: .yesterday, referenceDate: context.clock.now), "无法拖到昨天")
+        var moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到昨天后任务消失")
+        try expect(!moved.isCompleted, "拖到昨天后仍为已完成")
+        try expect(Calendar.yiRi.isDate(moved.scheduledDate ?? .distantPast, inSameDayAs: context.clock.now.addingDays(-1)), "拖到昨天后日期不正确")
+
+        try expect(context.store.moveTask(task.id, to: .todayPending, referenceDate: context.clock.now), "无法拖到今天待完成")
+        moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到今天后任务消失")
+        try expect(!moved.isCompleted, "拖到今天待完成后仍为已完成")
+        try expect(Calendar.yiRi.isDate(moved.scheduledDate ?? .distantPast, inSameDayAs: context.clock.now), "拖到今天待完成后日期不正确")
+
+        try expect(context.store.moveTask(task.id, to: .todayCompleted, referenceDate: context.clock.now), "无法拖到今天已完成")
+        moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到已完成后任务消失")
+        try expect(moved.isCompleted, "拖到今天已完成后状态未更新")
+        try expect(Calendar.yiRi.isDate(moved.completedAt ?? .distantPast, inSameDayAs: context.clock.now), "拖到今天已完成后完成时间不正确")
+
+        context.clock.advance(seconds: 60)
+        try expect(!context.store.moveTask(task.id, to: .todayCompleted, referenceDate: context.clock.now), "拖回同一列不应重复修改")
+        let unchanged = try require(context.store.tasks.first(where: { $0.id == task.id }), "重复拖放后任务消失")
+        try expect(unchanged.completedAt == moved.completedAt, "拖回同一列改写了完成时间")
+
+        try expect(context.store.moveTask(task.id, to: .todayPending, referenceDate: context.clock.now), "已完成任务无法拖回今天待完成")
+        let restored = try require(context.store.tasks.first(where: { $0.id == task.id }), "恢复后任务消失")
+        try expect(!restored.isCompleted && restored.completedAt == nil, "拖回待完成后没有清除完成状态")
     }
 
     private func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {

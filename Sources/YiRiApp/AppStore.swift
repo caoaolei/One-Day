@@ -113,29 +113,25 @@ final class AppStore: ObservableObject {
             }
     }
 
-    func earlierCompleted(referenceDate: Date = Date(), limit: Int = 20) -> [TaskItem] {
-        guard limit > 0 else { return [] }
-        return Array(
-            tasks
-                .filter { item in
-                    guard item.isCompleted else { return false }
-                    guard let completedAt = item.completedAt else { return true }
-                    return !Calendar.yiRi.isDate(completedAt, inSameDayAs: referenceDate)
+    func earlierCompleted(referenceDate: Date = Date()) -> [TaskItem] {
+        tasks
+            .filter { item in
+                guard item.isCompleted else { return false }
+                guard let completedAt = item.completedAt else { return true }
+                return !Calendar.yiRi.isDate(completedAt, inSameDayAs: referenceDate)
+            }
+            .sorted {
+                switch ($0.completedAt, $1.completedAt) {
+                case let (left?, right?):
+                    return left > right
+                case (nil, nil):
+                    return $0.createdAt > $1.createdAt
+                case (nil, _):
+                    return false
+                case (_, nil):
+                    return true
                 }
-                .sorted {
-                    switch ($0.completedAt, $1.completedAt) {
-                    case let (left?, right?):
-                        return left > right
-                    case (nil, nil):
-                        return $0.createdAt > $1.createdAt
-                    case (nil, _):
-                        return false
-                    case (_, nil):
-                        return true
-                    }
-                }
-                .prefix(limit)
-        )
+            }
     }
 
     func earlierCompletedCount(referenceDate: Date = Date()) -> Int {
@@ -149,6 +145,47 @@ final class AppStore: ObservableObject {
                 count += 1
             }
         }
+    }
+
+    @discardableResult
+    func moveTask(_ id: UUID, to lane: BoardLane, referenceDate: Date? = nil) -> Bool {
+        guard let index = tasks.firstIndex(where: { $0.id == id }) else { return false }
+        let now = referenceDate ?? nowProvider()
+        let today = now.startOfLocalDay
+
+        switch lane {
+        case .yesterday:
+            let isAlreadyOverdue = !tasks[index].isCompleted
+                && (tasks[index].scheduledDate?.startOfLocalDay ?? .distantFuture) < today
+            guard !isAlreadyOverdue else { return false }
+            tasks[index].isCompleted = false
+            tasks[index].completedAt = nil
+            if (tasks[index].scheduledDate?.startOfLocalDay ?? .distantFuture) >= today {
+                tasks[index].scheduledDate = today.addingDays(-1)
+            }
+
+        case .todayPending:
+            let isAlreadyToday = !tasks[index].isCompleted
+                && tasks[index].scheduledDate.map { Calendar.yiRi.isDate($0, inSameDayAs: today) } == true
+            guard !isAlreadyToday else { return false }
+            tasks[index].isCompleted = false
+            tasks[index].completedAt = nil
+            tasks[index].scheduledDate = today
+
+        case .todayCompleted:
+            let isAlreadyCompletedToday = tasks[index].isCompleted
+                && tasks[index].completedAt.map { Calendar.yiRi.isDate($0, inSameDayAs: today) } == true
+            guard !isAlreadyCompletedToday else { return false }
+            if activeTaskID == id {
+                finishActiveTask()
+                return true
+            }
+            tasks[index].isCompleted = true
+            tasks[index].completedAt = now
+        }
+
+        save()
+        return true
     }
 
     func meetings(on date: Date) -> [MeetingItem] {

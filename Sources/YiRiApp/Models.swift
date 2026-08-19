@@ -26,6 +26,12 @@ enum CarryOverPolicy: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum BoardLane {
+    case yesterday
+    case todayPending
+    case todayCompleted
+}
+
 struct TaskItem: Codable, Identifiable, Hashable {
     var id = UUID()
     var title: String
