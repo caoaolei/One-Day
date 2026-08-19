@@ -12,6 +12,32 @@ struct TodayView: View {
     private var todayMeetings: [MeetingItem] { store.meetings(on: Date()) }
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            if store.isDayFinalized(context.date) {
+                DayClosureView(
+                    destination: .today,
+                    date: context.date,
+                    displayName: store.settings.displayName
+                )
+            } else {
+                todayWorkspace
+            }
+        }
+        .sheet(isPresented: $showingTaskEditor) {
+            TaskEditorSheet(defaultDate: Date(), task: editingTask)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showingMeetingEditor) {
+            MeetingEditorSheet(defaultDate: Date(), meeting: editingMeeting)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showingBatchAdd) {
+            BatchAddSheet()
+                .environmentObject(store)
+        }
+    }
+
+    private var todayWorkspace: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 pageHeader
@@ -28,18 +54,6 @@ struct TodayView: View {
                 }
             }
             .yiRiPage()
-        }
-        .sheet(isPresented: $showingTaskEditor) {
-            TaskEditorSheet(defaultDate: Date(), task: editingTask)
-                .environmentObject(store)
-        }
-        .sheet(isPresented: $showingMeetingEditor) {
-            MeetingEditorSheet(defaultDate: Date(), meeting: editingMeeting)
-                .environmentObject(store)
-        }
-        .sheet(isPresented: $showingBatchAdd) {
-            BatchAddSheet()
-                .environmentObject(store)
         }
     }
 

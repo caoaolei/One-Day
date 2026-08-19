@@ -21,12 +21,13 @@ struct AppStoreChecks {
         suite.run("成果档案按日汇总实际用时", suite.checkHistoryDaySummaries)
         suite.run("相似任务按名称而非分类归组", suite.checkAutomaticHistoryTopics)
         suite.run("人工事项整理持久化且不学习未来任务", suite.checkManualHistoryTopics)
+        suite.run("完成复盘后当天封存且不可覆盖", suite.checkReviewFinalization)
 
         if suite.failureCount > 0 {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 15 checks")
+        print("PASSED: 16 checks")
     }
 }
 
@@ -356,6 +357,23 @@ private struct CheckSuite {
         let encoded = try JSONEncoder().encode(TaskItem(title: "兼容旧数据", category: "测试", estimatedMinutes: 10))
         let decoded = try JSONDecoder().decode(TaskItem.self, from: encoded)
         try expect(decoded.historyGroupID == nil && decoded.historyGroupName == nil, "缺少新字段的任务无法兼容")
+    }
+
+    func checkReviewFinalization() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        context.store.addTask(title: "封存测试", category: "测试", estimatedMinutes: 20, date: context.clock.now)
+        try expect(context.store.saveReview(note: "第一版复盘"), "首次完成复盘失败")
+        try expect(context.store.isDayFinalized(context.clock.now), "完成复盘后当天没有进入封存状态")
+        try expect(context.store.tasks.count == 1, "封存当天错误删除了任务数据")
+
+        try expect(!context.store.saveReview(note: "不应覆盖"), "已封存复盘仍可再次保存")
+        try expect(context.store.review(on: context.clock.now)?.note == "第一版复盘", "已封存复盘被覆盖")
+
+        context.clock.advance(seconds: 24 * 60 * 60)
+        try expect(!context.store.isDayFinalized(context.clock.now), "新的一天仍被错误锁定")
+        try expect(context.store.saveReview(note: "第二天复盘"), "新的一天无法完成复盘")
     }
 
     private func addCompletedTask(

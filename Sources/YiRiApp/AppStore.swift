@@ -310,6 +310,10 @@ final class AppStore: ObservableObject {
         reviews.first { Calendar.yiRi.isDate($0.date, inSameDayAs: date) }
     }
 
+    func isDayFinalized(_ date: Date) -> Bool {
+        review(on: date) != nil
+    }
+
     func addTask(title: String, category: String, estimatedMinutes: Int, date: Date?) {
         let task = TaskItem(
             title: title,
@@ -472,15 +476,12 @@ final class AppStore: ObservableObject {
         save()
     }
 
-    func saveReview(note: String) {
+    @discardableResult
+    func saveReview(note: String) -> Bool {
         let now = nowProvider()
         let today = now.startOfLocalDay
-        if let index = reviews.firstIndex(where: { Calendar.yiRi.isDate($0.date, inSameDayAs: today) }) {
-            reviews[index].note = note
-            reviews[index].savedAt = now
-        } else {
-            reviews.append(DailyReview(date: today, note: note))
-        }
+        guard review(on: today) == nil else { return false }
+        reviews.append(DailyReview(date: today, note: note, savedAt: now))
 
         let incomplete = tasks(on: today).filter { !$0.isCompleted }
         switch settings.carryOverPolicy {
@@ -492,6 +493,7 @@ final class AppStore: ObservableObject {
             incomplete.forEach { moveTask($0.id, to: nil) }
         }
         save()
+        return true
     }
 
     func updateSettings(_ newSettings: AppSettings) {

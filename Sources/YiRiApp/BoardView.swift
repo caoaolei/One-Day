@@ -451,6 +451,20 @@ private struct CompletedHistorySheet: View {
         store.historyTopics()
     }
 
+    private var archiveColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: mode == .date ? 420 : 440, maximum: 640), spacing: 18, alignment: .top)]
+    }
+
+    private var archiveSize: CGSize {
+        guard let visibleFrame = NSScreen.main?.visibleFrame else {
+            return CGSize(width: 1180, height: 820)
+        }
+        return CGSize(
+            width: max(900, visibleFrame.width - 72),
+            height: max(640, visibleFrame.height - 72)
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
@@ -462,10 +476,17 @@ private struct CompletedHistorySheet: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("完成") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Label("返回看板", systemImage: "xmark")
+                }
+                .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
-            .padding(22)
+            .padding(.horizontal, 30)
+            .padding(.top, 26)
+            .padding(.bottom, 20)
 
             Picker("成果浏览方式", selection: $mode) {
                 ForEach(HistoryArchiveMode.allCases) { option in
@@ -474,8 +495,9 @@ private struct CompletedHistorySheet: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .padding(.horizontal, 22)
-            .padding(.bottom, 16)
+            .frame(maxWidth: 360)
+            .padding(.horizontal, 30)
+            .padding(.bottom, 18)
 
             Divider()
 
@@ -488,7 +510,7 @@ private struct CompletedHistorySheet: View {
                 .padding(22)
             } else {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 16) {
+                    LazyVGrid(columns: archiveColumns, alignment: .leading, spacing: 18) {
                         switch mode {
                         case .date:
                             ForEach(dayGroups) { group in
@@ -518,11 +540,11 @@ private struct CompletedHistorySheet: View {
                             }
                         }
                     }
-                    .padding(22)
+                    .padding(30)
                 }
             }
         }
-        .frame(minWidth: 620, idealWidth: 720, minHeight: 540, idealHeight: 700)
+        .frame(width: archiveSize.width, height: archiveSize.height)
         .background(YiRiTheme.page)
         .sheet(item: $editingTask) { task in
             TaskEditorSheet(defaultDate: task.scheduledDate ?? Date(), task: task)
@@ -627,6 +649,13 @@ private struct HistoryDaySection: View {
                     onDelete: { onDelete(task) }
                 )
             }
+        }
+        .padding(14)
+        .background(YiRiTheme.panel)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(YiRiTheme.completionBorder.opacity(0.68), lineWidth: 1)
         }
     }
 }

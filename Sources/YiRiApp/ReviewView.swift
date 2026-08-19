@@ -3,7 +3,7 @@ import SwiftUI
 struct ReviewView: View {
     @EnvironmentObject private var store: AppStore
     @State private var note = ""
-    @State private var justSaved = false
+    @State private var showingFinalizeConfirmation = false
     @State private var completionSummary: ReviewCompletionSummary?
 
     private var tasks: [TaskItem] { store.tasks(on: Date()) }
@@ -18,6 +18,34 @@ struct ReviewView: View {
     }
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            if store.isDayFinalized(context.date) {
+                DayClosureView(
+                    destination: .review,
+                    date: context.date,
+                    displayName: store.settings.displayName
+                )
+            } else {
+                reviewWorkspace
+            }
+        }
+        .onAppear {
+            if !store.isDayFinalized(Date()) {
+                note = ""
+            }
+        }
+        .alert("确认完成今日复盘？", isPresented: $showingFinalizeConfirmation) {
+            Button("再检查一下", role: .cancel) {}
+            Button("确认并结束今天") { finalizeReview() }
+        } message: {
+            Text("确认后，今天与复盘页面将不再展示今日任务，今天的复盘也不能再次修改。进行中的计时会结束，未完成任务会按当前处理方式安排。")
+        }
+        .sheet(item: $completionSummary) { summary in
+            ReviewCompletionSheet(summary: summary)
+        }
+    }
+
+    private var reviewWorkspace: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top) {
@@ -29,11 +57,6 @@ struct ReviewView: View {
                             .font(.system(size: 28, weight: .medium))
                     }
                     Spacer()
-                    if justSaved || store.review(on: Date()) != nil {
-                        Label("已保存", systemImage: "checkmark.icloud")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                 }
 
                 Panel {
@@ -120,16 +143,7 @@ struct ReviewView: View {
                                 .foregroundStyle(.secondary)
                             Spacer()
                             Button("完成今日复盘") {
-                                let summary = ReviewCompletionSummary(
-                                    displayName: store.settings.displayName,
-                                    completedCount: completed.count,
-                                    totalCount: tasks.count,
-                                    focusedSeconds: actualSeconds,
-                                    hasNote: !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                )
-                                store.saveReview(note: note)
-                                justSaved = true
-                                completionSummary = summary
+                                showingFinalizeConfirmation = true
                             }
                             .buttonStyle(.borderedProminent)
                         }
@@ -138,12 +152,28 @@ struct ReviewView: View {
             }
             .yiRiPage()
         }
-        .onAppear {
-            note = store.review(on: Date())?.note ?? ""
+    }
+
+    private func finalizeReview() {
+        if store.activeTask != nil {
+            store.finishActiveTask()
         }
-        .sheet(item: $completionSummary) { summary in
-            ReviewCompletionSheet(summary: summary)
+
+        let finalTasks = store.tasks(on: Date())
+        let finalCompleted = finalTasks.filter(\.isCompleted)
+        let focusedSeconds = finalCompleted.reduce(0) { result, task in
+            result + max(0, task.actualSeconds)
         }
+        let summary = ReviewCompletionSummary(
+            displayName: store.settings.displayName,
+            completedCount: finalCompleted.count,
+            totalCount: finalTasks.count,
+            focusedSeconds: focusedSeconds,
+            hasNote: !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        )
+
+        guard store.saveReview(note: note) else { return }
+        completionSummary = summary
     }
 }
 
