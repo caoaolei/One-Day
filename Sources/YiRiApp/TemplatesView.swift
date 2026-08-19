@@ -57,6 +57,7 @@ struct ReminderSettingsView: View {
     @State private var policy = CarryOverPolicy.manual
     @State private var remindDoNotDisturb = true
     @State private var saving = false
+    @State private var notificationMessage = ""
 
     var body: some View {
         Panel {
@@ -91,9 +92,20 @@ struct ReminderSettingsView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(saving)
                 }
+                if !notificationMessage.isEmpty {
+                    Label(
+                        notificationMessage,
+                        systemImage: store.settings.notificationsAuthorized ? "checkmark.circle" : "exclamationmark.circle"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(store.settings.notificationsAuthorized ? YiRiTheme.accent : .secondary)
+                }
             }
         }
-        .onAppear { loadSettings() }
+        .onAppear {
+            loadSettings()
+            refreshAuthorizationStatus()
+        }
     }
 
     private func loadSettings() {
@@ -114,7 +126,17 @@ struct ReminderSettingsView: View {
         Task {
             let granted = await NotificationManager.shared.requestAndSchedule(settings: settings)
             store.setNotificationAuthorization(granted)
+            notificationMessage = granted
+                ? "提醒已保存"
+                : "通知未授权，请在“系统设置 → 通知 → 一日”中开启"
             saving = false
+        }
+    }
+
+    private func refreshAuthorizationStatus() {
+        Task {
+            let authorized = await NotificationManager.shared.isAuthorized()
+            store.setNotificationAuthorization(authorized)
         }
     }
 

@@ -11,15 +11,43 @@ final class AppStore: ObservableObject {
     @Published private(set) var activeTaskID: UUID?
     @Published private(set) var timerStartedAt: Date?
     @Published private(set) var timerAccumulatedSeconds = 0
+    @Published private(set) var persistenceIssue: PersistenceIssue?
 
     private let dataURL: URL
+    private let notificationManager: any TaskNotificationManaging
+    private let nowProvider: () -> Date
+    private var persistenceBlocked = false
 
-    init() {
+    init(
+        dataURL: URL? = nil,
+        notificationManager: any TaskNotificationManaging = NotificationManager.shared,
+        nowProvider: @escaping () -> Date = Date.init
+    ) {
         let fileManager = FileManager.default
-        let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let directory = support.appendingPathComponent("YiRi", isDirectory: true)
-        try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        dataURL = directory.appendingPathComponent("data.json")
+        let resolvedURL: URL
+        if let dataURL {
+            resolvedURL = dataURL
+        } else {
+            let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            resolvedURL = support
+                .appendingPathComponent("YiRi", isDirectory: true)
+                .appendingPathComponent("data.json")
+        }
+        self.dataURL = resolvedURL
+        self.notificationManager = notificationManager
+        self.nowProvider = nowProvider
+        do {
+            try fileManager.createDirectory(
+                at: resolvedURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+        } catch {
+            persistenceBlocked = true
+            persistenceIssue = PersistenceIssue(
+                title: "无法创建数据目录",
+                message: "一日暂时不能保存数据：\(error.localizedDescription)"
+            )
+        }
         load()
     }
 
@@ -37,6 +65,40 @@ final class AppStore: ObservableObject {
             .sorted { left, right in
                 if left.isCompleted != right.isCompleted { return !left.isCompleted }
                 return left.createdAt < right.createdAt
+            }
+    }
+
+    func overdueTasks(referenceDate: Date = Date()) -> [TaskItem] {
+        let today = referenceDate.startOfLocalDay
+        return tasks
+            .filter { item in
+                guard !item.isCompleted, let scheduledDate = item.scheduledDate else { return false }
+                return scheduledDate.startOfLocalDay < today
+            }
+            .sorted {
+                ($0.scheduledDate ?? .distantPast) > ($1.scheduledDate ?? .distantPast)
+            }
+    }
+
+    func unplannedOrUpcomingTasks(referenceDate: Date = Date()) -> [TaskItem] {
+        let tomorrow = referenceDate.addingDays(1)
+        return tasks
+            .filter { item in
+                guard !item.isCompleted else { return false }
+                guard let scheduledDate = item.scheduledDate else { return true }
+                return scheduledDate.startOfLocalDay >= tomorrow
+            }
+            .sorted { left, right in
+                switch (left.scheduledDate, right.scheduledDate) {
+                case (nil, nil):
+                    return left.createdAt < right.createdAt
+                case (nil, _):
+                    return true
+                case (_, nil):
+                    return false
+                case let (leftDate?, rightDate?):
+                    return leftDate < rightDate
+                }
             }
     }
 
@@ -64,13 +126,16 @@ final class AppStore: ObservableObject {
     func updateTask(_ task: TaskItem) {
         guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
         tasks[index] = task
+        if activeTaskID == task.id, timerStartedAt != nil {
+            scheduleEstimateReminder(for: task)
+        }
         save()
     }
 
     func setCompleted(_ id: UUID, completed: Bool) {
         guard let index = tasks.firstIndex(where: { $0.id == id }) else { return }
         tasks[index].isCompleted = completed
-        tasks[index].completedAt = completed ? Date() : nil
+        tasks[index].completedAt = completed ? nowProvider() : nil
         if completed, activeTaskID == id { finishActiveTask() }
         save()
     }
@@ -84,7 +149,7 @@ final class AppStore: ObservableObject {
     func deleteTask(_ id: UUID) {
         tasks.removeAll { $0.id == id }
         if activeTaskID == id {
-            NotificationManager.shared.cancelEstimateReminder(taskID: id)
+            notificationManager.cancelEstimateReminder(taskID: id)
             activeTaskID = nil
             timerStartedAt = nil
             timerAccumulatedSeconds = 0
@@ -93,42 +158,47 @@ final class AppStore: ObservableObject {
     }
 
     func startTask(_ id: UUID) {
-        if activeTaskID != id {
-            pauseActiveTask()
-            activeTaskID = id
-            timerAccumulatedSeconds = tasks.first(where: { $0.id == id })?.actualSeconds ?? 0
+        guard let task = tasks.first(where: { $0.id == id }), !task.isCompleted else { return }
+        if activeTaskID == id {
+            if timerStartedAt == nil { resumeActiveTask() }
+            return
         }
-        timerStartedAt = Date()
+
+        pauseActiveTask()
+        activeTaskID = id
+        timerAccumulatedSeconds = task.actualSeconds
+        timerStartedAt = nowProvider()
         save()
 
-        if let task = tasks.first(where: { $0.id == id }) {
-            let remaining = max(2, task.estimatedMinutes * 60 - timerAccumulatedSeconds)
-            NotificationManager.shared.scheduleEstimateReached(taskID: id, taskTitle: task.title, after: remaining)
-            if settings.remindDoNotDisturb {
-                NotificationManager.shared.sendFocusReminder(taskTitle: task.title)
-            }
+        scheduleEstimateReminder(for: task)
+        if settings.remindDoNotDisturb {
+            notificationManager.sendFocusReminder(taskTitle: task.title)
         }
     }
 
-    func elapsedSeconds(at now: Date = Date()) -> Int {
+    func elapsedSeconds(at now: Date? = nil) -> Int {
         guard let timerStartedAt else { return timerAccumulatedSeconds }
-        return timerAccumulatedSeconds + max(0, Int(now.timeIntervalSince(timerStartedAt)))
+        let current = now ?? nowProvider()
+        return timerAccumulatedSeconds + max(0, Int(current.timeIntervalSince(timerStartedAt)))
     }
 
     func pauseActiveTask() {
         guard let activeTaskID else { return }
-        timerAccumulatedSeconds = elapsedSeconds()
+        let elapsed = elapsedSeconds()
+        timerAccumulatedSeconds = elapsed
+        if let index = tasks.firstIndex(where: { $0.id == activeTaskID }) {
+            tasks[index].actualSeconds = elapsed
+        }
         timerStartedAt = nil
-        NotificationManager.shared.cancelEstimateReminder(taskID: activeTaskID)
+        notificationManager.cancelEstimateReminder(taskID: activeTaskID)
         save()
     }
 
     func resumeActiveTask() {
         guard let activeTaskID, timerStartedAt == nil,
               let task = tasks.first(where: { $0.id == activeTaskID }) else { return }
-        timerStartedAt = Date()
-        let remaining = max(2, task.estimatedMinutes * 60 - timerAccumulatedSeconds)
-        NotificationManager.shared.scheduleEstimateReached(taskID: activeTaskID, taskTitle: task.title, after: remaining)
+        timerStartedAt = nowProvider()
+        scheduleEstimateReminder(for: task)
         save()
     }
 
@@ -136,10 +206,10 @@ final class AppStore: ObservableObject {
         guard let activeTaskID,
               let index = tasks.firstIndex(where: { $0.id == activeTaskID }) else { return }
         let elapsed = elapsedSeconds()
-        NotificationManager.shared.cancelEstimateReminder(taskID: activeTaskID)
+        notificationManager.cancelEstimateReminder(taskID: activeTaskID)
         tasks[index].actualSeconds = elapsed
         tasks[index].isCompleted = true
-        tasks[index].completedAt = Date()
+        tasks[index].completedAt = nowProvider()
         self.activeTaskID = nil
         timerStartedAt = nil
         timerAccumulatedSeconds = 0
@@ -168,10 +238,11 @@ final class AppStore: ObservableObject {
     }
 
     func saveReview(note: String) {
-        let today = Date().startOfLocalDay
+        let now = nowProvider()
+        let today = now.startOfLocalDay
         if let index = reviews.firstIndex(where: { Calendar.yiRi.isDate($0.date, inSameDayAs: today) }) {
             reviews[index].note = note
-            reviews[index].savedAt = Date()
+            reviews[index].savedAt = now
         } else {
             reviews.append(DailyReview(date: today, note: note))
         }
@@ -200,8 +271,13 @@ final class AppStore: ObservableObject {
     }
 
     func setNotificationAuthorization(_ authorized: Bool) {
+        guard settings.notificationsAuthorized != authorized else { return }
         settings.notificationsAuthorized = authorized
         save()
+    }
+
+    func clearPersistenceIssue() {
+        persistenceIssue = nil
     }
 
     func addTemplate(name: String, detail: String, taskLines: [String], defaultMinutes: Int) {
@@ -269,8 +345,11 @@ final class AppStore: ObservableObject {
         }
         let minutes = historical.map { max(5, $0.actualSeconds / 60) }.sorted()
         if !minutes.isEmpty {
-            let median = minutes[minutes.count / 2]
-            let rounded = max(5, Int((Double(median) / 5.0).rounded()) * 5)
+            let middle = minutes.count / 2
+            let median = minutes.count.isMultiple(of: 2)
+                ? Double(minutes[middle - 1] + minutes[middle]) / 2.0
+                : Double(minutes[middle])
+            let rounded = max(5, Int((median / 5.0).rounded()) * 5)
             return EstimateSuggestion(minutes: rounded, reason: "基于 \(minutes.count) 次相似任务的中位用时")
         }
 
@@ -293,12 +372,13 @@ final class AppStore: ObservableObject {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: dataURL) else {
+        guard FileManager.default.fileExists(atPath: dataURL.path) else {
             seedInitialData()
             save()
             return
         }
         do {
+            let data = try Data(contentsOf: dataURL)
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let state = try decoder.decode(PersistedState.self, from: data)
@@ -311,12 +391,12 @@ final class AppStore: ObservableObject {
             timerStartedAt = state.timerStartedAt
             timerAccumulatedSeconds = state.timerAccumulatedSeconds
         } catch {
-            seedInitialData()
-            save()
+            recoverFromUnreadableData()
         }
     }
 
     private func save() {
+        guard !persistenceBlocked else { return }
         let state = PersistedState(
             tasks: tasks,
             meetings: meetings,
@@ -330,22 +410,54 @@ final class AppStore: ObservableObject {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        if let data = try? encoder.encode(state) {
-            try? data.write(to: dataURL, options: .atomic)
+        do {
+            let data = try encoder.encode(state)
+            try data.write(to: dataURL, options: .atomic)
+        } catch {
+            persistenceIssue = PersistenceIssue(
+                title: "数据保存失败",
+                message: "请检查磁盘空间或文件权限。错误：\(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func recoverFromUnreadableData() {
+        let backupURL = dataURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("data-corrupt-\(Int(nowProvider().timeIntervalSince1970)).json")
+        do {
+            try FileManager.default.copyItem(at: dataURL, to: backupURL)
+            seedInitialData()
+            save()
+            persistenceIssue = PersistenceIssue(
+                title: "数据文件需要恢复",
+                message: "原数据无法读取，已备份到 \(backupURL.lastPathComponent)。一日已创建一份新的空白数据文件。"
+            )
+        } catch {
+            seedInitialData()
+            persistenceBlocked = true
+            persistenceIssue = PersistenceIssue(
+                title: "数据文件无法读取",
+                message: "为了保护原文件，一日已停止写入。请先备份 \(dataURL.path)。错误：\(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func scheduleEstimateReminder(for task: TaskItem) {
+        let remaining = task.estimatedMinutes * 60 - elapsedSeconds()
+        if remaining > 1 {
+            notificationManager.scheduleEstimateReached(
+                taskID: task.id,
+                taskTitle: task.title,
+                after: remaining
+            )
+        } else {
+            notificationManager.cancelEstimateReminder(taskID: task.id)
         }
     }
 
     private func seedInitialData() {
-        let today = Date().startOfLocalDay
-        tasks = [
-            TaskItem(title: "梳理本周优先级", category: "规划", estimatedMinutes: 30, actualSeconds: 26 * 60, scheduledDate: today, isCompleted: true, completedAt: Date()),
-            TaskItem(title: "完成每日复盘 App MVP", category: "深度工作", estimatedMinutes: 90, scheduledDate: today),
-            TaskItem(title: "回复项目邮件", category: "日常", estimatedMinutes: 30, scheduledDate: today),
-            TaskItem(title: "撰写季度复盘初稿", category: "写作", estimatedMinutes: 120, scheduledDate: today),
-            TaskItem(title: "整理项目邮件", category: "日常", estimatedMinutes: 30, actualSeconds: 24 * 60, scheduledDate: today.addingDays(-3), isCompleted: true, completedAt: today.addingDays(-3)),
-            TaskItem(title: "回复合作邮件", category: "日常", estimatedMinutes: 30, actualSeconds: 31 * 60, scheduledDate: today.addingDays(-5), isCompleted: true, completedAt: today.addingDays(-5)),
-            TaskItem(title: "写产品方案", category: "写作", estimatedMinutes: 90, actualSeconds: 102 * 60, scheduledDate: today.addingDays(-6), isCompleted: true, completedAt: today.addingDays(-6))
-        ]
+        tasks = []
         templates = [
             TaskTemplate(
                 name: "工作日启动",
@@ -368,8 +480,7 @@ final class AppStore: ObservableObject {
                 isBuiltIn: true
             )
         ]
-        let tenAM = Calendar.yiRi.date(bySettingHour: 10, minute: 0, second: 0, of: today) ?? today
-        meetings = [MeetingItem(title: "产品周会", startDate: tenAM, durationMinutes: 45, location: "会议室 A")]
+        meetings = []
         reviews = []
         settings = AppSettings()
         activeTaskID = nil

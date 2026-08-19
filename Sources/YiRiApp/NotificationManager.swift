@@ -1,11 +1,22 @@
 import Foundation
 import UserNotifications
 
-final class NotificationManager: @unchecked Sendable {
+protocol TaskNotificationManaging: Sendable {
+    func sendFocusReminder(taskTitle: String)
+    func scheduleEstimateReached(taskID: UUID, taskTitle: String, after seconds: Int)
+    func cancelEstimateReminder(taskID: UUID)
+}
+
+final class NotificationManager: TaskNotificationManaging, @unchecked Sendable {
     static let shared = NotificationManager()
     private let center = UNUserNotificationCenter.current()
 
     private init() {}
+
+    func isAuthorized() async -> Bool {
+        let settings = await center.notificationSettings()
+        return settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+    }
 
     func requestAndSchedule(settings: AppSettings) async -> Bool {
         do {

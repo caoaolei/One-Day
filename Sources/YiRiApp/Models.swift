@@ -94,6 +94,12 @@ struct EstimateSuggestion: Equatable {
     let reason: String
 }
 
+struct PersistenceIssue: Identifiable, Equatable {
+    let id = UUID()
+    let title: String
+    let message: String
+}
+
 extension Calendar {
     static let yiRi = Calendar(identifier: .gregorian)
 }

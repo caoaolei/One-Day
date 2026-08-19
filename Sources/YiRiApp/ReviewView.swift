@@ -8,10 +8,11 @@ struct ReviewView: View {
 
     private var tasks: [TaskItem] { store.tasks(on: Date()) }
     private var completed: [TaskItem] { tasks.filter(\.isCompleted) }
-    private var actualSeconds: Int { completed.reduce(0) { $0 + $1.actualSeconds } }
-    private var estimatedSeconds: Int { completed.reduce(0) { $0 + $1.estimatedMinutes * 60 } }
-    private var accuracy: Int {
-        guard estimatedSeconds > 0 else { return 0 }
+    private var timedCompleted: [TaskItem] { completed.filter { $0.actualSeconds > 0 } }
+    private var actualSeconds: Int { timedCompleted.reduce(0) { $0 + $1.actualSeconds } }
+    private var estimatedSeconds: Int { timedCompleted.reduce(0) { $0 + $1.estimatedMinutes * 60 } }
+    private var accuracy: Int? {
+        guard estimatedSeconds > 0 else { return nil }
         let difference = abs(actualSeconds - estimatedSeconds)
         return max(0, Int((1 - Double(difference) / Double(estimatedSeconds)) * 100))
     }
@@ -41,7 +42,7 @@ struct ReviewView: View {
                         Divider().frame(height: 44)
                         StatView(value: actualSeconds.secondsDurationText, label: "实际专注")
                         Divider().frame(height: 44)
-                        StatView(value: "\(accuracy)%", label: "估时准确度")
+                        StatView(value: accuracy.map { "\($0)%" } ?? "—", label: "估时准确度")
                     }
                 }
 

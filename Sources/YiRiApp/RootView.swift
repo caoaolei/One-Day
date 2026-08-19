@@ -91,9 +91,27 @@ struct RootView: View {
             )
         }
         .onAppear {
-            if needsProfileSetup {
+            if needsProfileSetup, store.persistenceIssue == nil {
                 showingProfileSetup = true
             }
+        }
+        .onChange(of: store.persistenceIssue) { issue in
+            if issue == nil, needsProfileSetup {
+                showingProfileSetup = true
+            }
+        }
+        .alert(
+            store.persistenceIssue?.title ?? "数据提示",
+            isPresented: Binding(
+                get: { store.persistenceIssue != nil },
+                set: { presented in
+                    if !presented { store.clearPersistenceIssue() }
+                }
+            )
+        ) {
+            Button("知道了") { store.clearPersistenceIssue() }
+        } message: {
+            Text(store.persistenceIssue?.message ?? "")
         }
     }
 }
