@@ -25,19 +25,51 @@ done
 SELECTED_DEVELOPER_DIR=""
 SDK_PATH=""
 SWIFT_BIN=""
+mkdir -p "$BUILD_PATH/module-cache"
+TOOLCHAIN_PROBE="$BUILD_PATH/toolchain-probe.swift"
+printf 'import SwiftUI\n' > "$TOOLCHAIN_PROBE"
+TARGET_TRIPLE="$(uname -m)-apple-macosx13.0"
 
 for candidate in "${developer_candidates[@]}"; do
   [[ -d "$candidate" ]] || continue
 
-  candidate_sdk="$(env DEVELOPER_DIR="$candidate" /usr/bin/xcrun --sdk macosx --show-sdk-path 2>/dev/null || true)"
   candidate_swift="$(env DEVELOPER_DIR="$candidate" /usr/bin/xcrun --find swift 2>/dev/null || true)"
+  candidate_swiftc="$(env DEVELOPER_DIR="$candidate" /usr/bin/xcrun --find swiftc 2>/dev/null || true)"
+  [[ -x "$candidate_swift" && -x "$candidate_swiftc" ]] || continue
 
-  if [[ -f "$candidate_sdk/SDKSettings.plist" && -x "$candidate_swift" ]]; then
-    SELECTED_DEVELOPER_DIR="$candidate"
-    SDK_PATH="$candidate_sdk"
-    SWIFT_BIN="$candidate_swift"
-    break
+  sdk_candidates=()
+  if [[ -n "${SDKROOT:-}" ]]; then
+    sdk_candidates+=("$SDKROOT")
   fi
+  default_sdk="$(env DEVELOPER_DIR="$candidate" /usr/bin/xcrun --sdk macosx --show-sdk-path 2>/dev/null || true)"
+  if [[ -n "$default_sdk" ]]; then
+    sdk_candidates+=("$default_sdk")
+  fi
+  for installed_sdk in "$candidate"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX*.sdk(N); do
+    sdk_candidates+=("$installed_sdk")
+  done
+  for installed_sdk in "$candidate"/SDKs/MacOSX*.sdk(N); do
+    sdk_candidates+=("$installed_sdk")
+  done
+
+  for candidate_sdk in "${sdk_candidates[@]}"; do
+    [[ -f "$candidate_sdk/SDKSettings.plist" ]] || continue
+    if env \
+      DEVELOPER_DIR="$candidate" \
+      CLANG_MODULE_CACHE_PATH="$BUILD_PATH/module-cache" \
+      SWIFT_MODULE_CACHE_PATH="$BUILD_PATH/module-cache" \
+      "$candidate_swiftc" \
+        -typecheck \
+        -sdk "$candidate_sdk" \
+        -target "$TARGET_TRIPLE" \
+        "$TOOLCHAIN_PROBE" \
+        >/dev/null 2>&1; then
+      SELECTED_DEVELOPER_DIR="$candidate"
+      SDK_PATH="$candidate_sdk"
+      SWIFT_BIN="$candidate_swift"
+      break 2
+    fi
+  done
 done
 
 if [[ -z "$SDK_PATH" || -z "$SWIFT_BIN" ]]; then
@@ -62,6 +94,7 @@ env \
   CLANG_MODULE_CACHE_PATH="$BUILD_PATH/module-cache" \
   SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_PATH/module-cache" \
   "$SWIFT_BIN" build \
+    --disable-sandbox \
     -c release \
     -Xswiftc -warnings-as-errors \
     --scratch-path "$BUILD_PATH" \
@@ -73,6 +106,7 @@ BIN_PATH="$(env \
   CLANG_MODULE_CACHE_PATH="$BUILD_PATH/module-cache" \
   SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_PATH/module-cache" \
   "$SWIFT_BIN" build \
+    --disable-sandbox \
     -c release \
     --scratch-path "$BUILD_PATH" \
     --cache-path "$CACHE_PATH" \

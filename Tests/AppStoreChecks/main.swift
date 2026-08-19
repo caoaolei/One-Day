@@ -16,12 +16,17 @@ struct AppStoreChecks {
         suite.run("完成与恢复立即更新看板分组", suite.checkCompleteAndRestore)
         suite.run("零计时任务显示为手动完成", suite.checkCompletionEffortText)
         suite.run("拖放任务同步更新日期与完成状态", suite.checkBoardLaneMoves)
+        suite.run("连续工作日计划正确跨过周末", suite.checkFutureWorkdayPlan)
+        suite.run("未来任务按日期出现并跳过重复", suite.checkFutureTaskCreation)
+        suite.run("成果档案按日汇总实际用时", suite.checkHistoryDaySummaries)
+        suite.run("相似任务按名称而非分类归组", suite.checkAutomaticHistoryTopics)
+        suite.run("人工事项整理持久化且不学习未来任务", suite.checkManualHistoryTopics)
 
         if suite.failureCount > 0 {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 10 checks")
+        print("PASSED: 15 checks")
     }
 }
 
@@ -220,6 +225,167 @@ private struct CheckSuite {
         try expect(!restored.isCompleted && restored.completedAt == nil, "拖回待完成后没有清除完成状态")
     }
 
+    func checkFutureWorkdayPlan() throws {
+        let friday = try date(year: 2026, month: 8, day: 21, hour: 9)
+        let context = try TestContext(now: friday)
+        defer { context.cleanUp() }
+
+        let plan = context.store.futureWorkdayPlan(
+            title: "连续任务",
+            workdayCount: 5,
+            skipDuplicates: false,
+            referenceDate: friday
+        )
+        try expect(plan.dates.count == 5, "没有生成 5 个工作日")
+        try expect(dayComponents(plan.dates.first) == DateComponents(year: 2026, month: 8, day: 24), "周五后的首个工作日不是周一")
+        try expect(dayComponents(plan.dates.last) == DateComponents(year: 2026, month: 8, day: 28), "5 个工作日的末日不正确")
+        try expect(plan.dates.allSatisfy { (2...6).contains(Calendar.yiRi.component(.weekday, from: $0)) }, "连续计划包含周末")
+    }
+
+    func checkFutureTaskCreation() throws {
+        let friday = try date(year: 2026, month: 8, day: 21, hour: 9)
+        let context = try TestContext(now: friday)
+        defer { context.cleanUp() }
+
+        let firstResult = context.store.addFutureWorkdayTasks(
+            title: "连续任务",
+            category: "测试",
+            estimatedMinutes: 30,
+            workdayCount: 1,
+            skipDuplicates: true,
+            referenceDate: friday
+        )
+        let monday = try date(year: 2026, month: 8, day: 24)
+        try expect(firstResult.createdCount == 1, "单个未来工作日任务创建失败")
+        try expect(context.store.tasks(on: friday).isEmpty, "未来任务提前进入今日待办")
+        try expect(context.store.tasks(on: monday).map(\.title) == ["连续任务"], "目标日期没有自动出现未来任务")
+
+        let preview = context.store.futureWorkdayPlan(
+            title: "连续任务",
+            workdayCount: 92,
+            skipDuplicates: true,
+            referenceDate: friday
+        )
+        try expect(preview.dates.count == 92, "92 个工作日边界被截断")
+        try expect(preview.creatableDates.count == 91 && preview.skippedDuplicateCount == 1, "同日同名任务没有被跳过")
+
+        let result = context.store.addFutureWorkdayTasks(
+            title: "连续任务",
+            category: "测试",
+            estimatedMinutes: 30,
+            workdayCount: 92,
+            skipDuplicates: true,
+            referenceDate: friday
+        )
+        try expect(result.createdCount == 91 && context.store.tasks.count == 92, "批量创建或去重数量不正确")
+    }
+
+    func checkHistoryDaySummaries() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        let timed = try addCompletedTask(to: context, title: "今日计时", completedAt: context.clock.now, actualSeconds: 120)
+        _ = try addCompletedTask(to: context, title: "今日手动", completedAt: context.clock.now.addingTimeInterval(-60), actualSeconds: 0)
+        _ = try addCompletedTask(to: context, title: "昨日计时", completedAt: context.clock.now.addingDays(-1), actualSeconds: 60)
+        _ = try addCompletedTask(to: context, title: "旧记录", completedAt: nil, actualSeconds: 0)
+
+        let groups = context.store.completedDayGroups()
+        try expect(groups.count == 3, "日期分组数量不正确")
+        try expect(groups.first?.tasks.contains(where: { $0.id == timed.id }) == true, "今天没有排在日期视图顶部")
+        try expect(groups.first?.totalActualSeconds == 120, "每日实际专注时长汇总不正确")
+        try expect(groups.first?.manualCompletionCount == 1, "每日手动完成数量不正确")
+        try expect(groups.last?.day == nil && groups.last?.tasks.first?.title == "旧记录", "缺少完成时间的任务没有归入较早记录")
+    }
+
+    func checkAutomaticHistoryTopics() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        let volumeOne = try addCompletedTask(to: context, title: "音量-SID 探索", completedAt: context.clock.now, actualSeconds: 60, category: "深度工作")
+        let volumeTwo = try addCompletedTask(to: context, title: "音量：环境音训练", completedAt: context.clock.now.addingTimeInterval(-60), actualSeconds: 120, category: "研究")
+        let report = try addCompletedTask(to: context, title: "撰写项目报告", completedAt: context.clock.now.addingTimeInterval(-120), actualSeconds: 180, category: "深度工作")
+        let email = try addCompletedTask(to: context, title: "清理收件箱", completedAt: context.clock.now.addingTimeInterval(-180), actualSeconds: 60, category: "深度工作")
+
+        let topics = context.store.historyTopics()
+        let volumeTopic = try require(topics.first(where: { topic in
+            let ids = Set(topic.tasks.map(\.id))
+            return ids.contains(volumeOne.id) && ids.contains(volumeTwo.id)
+        }), "相似的音量任务没有归入同一事项")
+        try expect(volumeTopic.tasks.count == 2, "相似事项混入了无关任务")
+        try expect(!topics.contains(where: { topic in
+            let ids = Set(topic.tasks.map(\.id))
+            return ids.contains(report.id) && ids.contains(email.id)
+        }), "仅分类相同的任务被错误归组")
+    }
+
+    func checkManualHistoryTopics() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        let first = try addCompletedTask(to: context, title: "音量-SID", completedAt: context.clock.now, actualSeconds: 60)
+        let second = try addCompletedTask(to: context, title: "音量-环境音", completedAt: context.clock.now.addingTimeInterval(-60), actualSeconds: 120)
+        let automatic = try require(context.store.historyTopics().first(where: { $0.tasks.count == 2 }), "初始相似事项不存在")
+        context.store.renameHistoryTopic(automatic, to: "音量项目")
+
+        let third = try addCompletedTask(to: context, title: "音量-响度", completedAt: context.clock.now.addingTimeInterval(60), actualSeconds: 180)
+        var topics = context.store.historyTopics()
+        let confirmed = try require(topics.first(where: { $0.name == "音量项目" }), "人工事项名称没有保存")
+        try expect(Set(confirmed.tasks.map(\.id)) == Set([first.id, second.id]), "新任务错误沿用了人工修正")
+        let newAutomatic = try require(topics.first(where: { $0.tasks.contains(where: { $0.id == third.id }) }), "未来相似任务没有保留自动分组")
+
+        context.store.moveHistoryTask(third.id, to: confirmed)
+        topics = context.store.historyTopics()
+        let mergedByMove = try require(topics.first(where: { $0.name == "音量项目" }), "移动记录后目标事项消失")
+        try expect(mergedByMove.tasks.count == 3, "移入其他事项失败")
+
+        context.store.splitHistoryTask(third.id, newTopicName: "响度专项")
+        topics = context.store.historyTopics()
+        let split = try require(topics.first(where: { $0.name == "响度专项" }), "拆成新事项失败")
+        let remaining = try require(topics.first(where: { $0.name == "音量项目" }), "拆分后原事项消失")
+        context.store.mergeHistoryTopic(split, into: remaining)
+        try expect(context.store.historyTopics().first(where: { $0.name == "音量项目" })?.tasks.count == 3, "合并事项失败")
+
+        let reloaded = AppStore(
+            dataURL: context.directory.appendingPathComponent("data.json"),
+            notificationManager: NotificationRecorder(),
+            nowProvider: { context.clock.now }
+        )
+        try expect(reloaded.historyTopics().first(where: { $0.name == "音量项目" })?.tasks.count == 3, "人工事项整理没有持久化")
+        try expect(newAutomatic.manualGroupID == nil, "自动事项被提前物化")
+
+        let encoded = try JSONEncoder().encode(TaskItem(title: "兼容旧数据", category: "测试", estimatedMinutes: 10))
+        let decoded = try JSONDecoder().decode(TaskItem.self, from: encoded)
+        try expect(decoded.historyGroupID == nil && decoded.historyGroupName == nil, "缺少新字段的任务无法兼容")
+    }
+
+    private func addCompletedTask(
+        to context: TestContext,
+        title: String,
+        completedAt: Date?,
+        actualSeconds: Int,
+        category: String = "测试"
+    ) throws -> TaskItem {
+        context.store.addTask(title: title, category: category, estimatedMinutes: 10, date: completedAt ?? context.clock.now)
+        var task = try require(context.store.tasks.last, "创建完成任务失败")
+        task.isCompleted = true
+        task.completedAt = completedAt
+        task.actualSeconds = actualSeconds
+        context.store.updateTask(task)
+        return task
+    }
+
+    private func date(year: Int, month: Int, day: Int, hour: Int = 12) throws -> Date {
+        try require(
+            Calendar.yiRi.date(from: DateComponents(year: year, month: month, day: day, hour: hour)),
+            "无法构造测试日期"
+        )
+    }
+
+    private func dayComponents(_ date: Date?) -> DateComponents {
+        guard let date else { return DateComponents() }
+        return Calendar.yiRi.dateComponents([.year, .month, .day], from: date)
+    }
+
     private func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         if !condition() { throw CheckError(message) }
     }
@@ -242,12 +408,12 @@ private final class TestContext {
     let notifications: NotificationRecorder
     let store: AppStore
 
-    init() throws {
+    init(now: Date = Date(timeIntervalSince1970: 1_700_000_000)) throws {
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("YiRiChecks-\(UUID().uuidString)", isDirectory: true)
         let dataURL = directory.appendingPathComponent("data.json")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let testClock = TestClock(now: Date(timeIntervalSince1970: 1_700_000_000))
+        let testClock = TestClock(now: now)
         let recorder = NotificationRecorder()
         clock = testClock
         notifications = recorder

@@ -20,7 +20,7 @@ struct BoardView: View {
     }
 
     private var completedHistoryCount: Int {
-        store.earlierCompletedCount()
+        store.completedTasks().count
     }
 
     private var unplannedOrUpcoming: [TaskItem] {
@@ -385,7 +385,7 @@ private struct TodayCompletedColumn: View {
             HStack(spacing: 8) {
                 Image(systemName: "clock.arrow.circlepath")
                     .foregroundStyle(YiRiTheme.accent)
-                Text("查看之前完成")
+                Text("查看全部成果")
                     .font(.caption.weight(.medium))
                 Spacer()
                 Text("\(historyCount) 项")
@@ -407,7 +407,7 @@ private struct TodayCompletedColumn: View {
                 .stroke(YiRiTheme.completionBorder.opacity(0.55), lineWidth: 1)
         }
         .disabled(historyCount == 0)
-        .help(historyCount == 0 ? "还没有之前完成的任务" : "查看今天以前完成的全部任务")
+        .help(historyCount == 0 ? "还没有完成的任务" : "查看包含今天在内的全部完成记录")
     }
 }
 
@@ -433,28 +433,31 @@ private struct DropEmptyState: View {
 private struct CompletedHistorySheet: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @State private var mode: HistoryArchiveMode = .date
     @State private var editingTask: TaskItem?
+    @State private var expandedTopicIDs: Set<String> = []
+    @State private var nameAction: HistoryNameAction?
+    @State private var selectionAction: HistorySelectionAction?
 
     private var tasks: [TaskItem] {
-        store.earlierCompleted()
+        store.completedTasks()
     }
 
-    private var groups: [CompletedDayGroup] {
-        let grouped = Dictionary(grouping: tasks) { task in
-            task.completedAt?.startOfLocalDay
-        }
-        return grouped
-            .map { CompletedDayGroup(day: $0.key, tasks: $0.value) }
-            .sorted { ($0.day ?? .distantPast) > ($1.day ?? .distantPast) }
+    private var dayGroups: [HistoryDayGroup] {
+        store.completedDayGroups()
+    }
+
+    private var topics: [HistoryTopic] {
+        store.historyTopics()
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("之前已完成")
+                    Text("成果档案")
                         .font(.system(size: 24, weight: .medium))
-                    Text("今天以前完成的全部任务，共 \(tasks.count) 项")
+                    Text("记录今天与过去完成的全部事情，共 \(tasks.count) 项")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -464,46 +467,54 @@ private struct CompletedHistorySheet: View {
             }
             .padding(22)
 
+            Picker("成果浏览方式", selection: $mode) {
+                ForEach(HistoryArchiveMode.allCases) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 22)
+            .padding(.bottom, 16)
+
             Divider()
 
             if tasks.isEmpty {
                 EmptyState(
                     systemImage: "clock.arrow.circlepath",
-                    title: "还没有历史成果",
-                    detail: "今天以前完成的任务会保存在这里。"
+                    title: "还没有成果记录",
+                    detail: "完成任务后，它会出现在日期和事项档案中。"
                 )
                 .padding(22)
             } else {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 18) {
-                        ForEach(groups) { group in
-                            VStack(alignment: .leading, spacing: 9) {
-                                HStack {
-                                    Text(group.title)
-                                        .font(.subheadline.weight(.semibold))
-                                    Spacer()
-                                    Text("\(group.tasks.count) 项")
-                                        .font(.caption.monospacedDigit())
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                ForEach(group.tasks) { task in
-                                    CompletedTaskCard(
-                                        task: task,
-                                        highlighted: false,
-                                        onEdit: { editingTask = task },
-                                        onRestore: {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                store.setCompleted(task.id, completed: false)
-                                            }
-                                        },
-                                        onDelete: {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                store.deleteTask(task.id)
-                                            }
-                                        }
-                                    )
-                                }
+                    LazyVStack(alignment: .leading, spacing: 16) {
+                        switch mode {
+                        case .date:
+                            ForEach(dayGroups) { group in
+                                HistoryDaySection(
+                                    group: group,
+                                    onEdit: { editingTask = $0 },
+                                    onRestore: restore,
+                                    onDelete: delete
+                                )
+                            }
+                        case .topic:
+                            ForEach(topics) { topic in
+                                HistoryTopicCard(
+                                    topic: topic,
+                                    isExpanded: expandedTopicIDs.contains(topic.id),
+                                    onToggle: { toggleTopic(topic.id) },
+                                    onRename: { nameAction = .rename(topic) },
+                                    onMerge: { selectionAction = .merge(topic) },
+                                    onEdit: { editingTask = $0 },
+                                    onMove: { task in
+                                        selectionAction = .move(task: task, sourceTopicID: topic.id)
+                                    },
+                                    onSplit: { nameAction = .split($0) },
+                                    onRestore: restore,
+                                    onDelete: delete
+                                )
                             }
                         }
                     }
@@ -511,25 +522,402 @@ private struct CompletedHistorySheet: View {
                 }
             }
         }
-        .frame(minWidth: 560, idealWidth: 640, minHeight: 500, idealHeight: 650)
+        .frame(minWidth: 620, idealWidth: 720, minHeight: 540, idealHeight: 700)
         .background(YiRiTheme.page)
         .sheet(item: $editingTask) { task in
             TaskEditorSheet(defaultDate: task.scheduledDate ?? Date(), task: task)
                 .environmentObject(store)
         }
+        .sheet(item: $nameAction) { action in
+            HistoryNameSheet(action: action) { name in
+                switch action {
+                case let .rename(topic):
+                    store.renameHistoryTopic(topic, to: name)
+                case let .split(task):
+                    store.splitHistoryTask(task.id, newTopicName: name)
+                }
+            }
+        }
+        .sheet(item: $selectionAction) { action in
+            HistoryTopicPickerSheet(
+                action: action,
+                candidates: action.candidates(from: topics)
+            ) { target in
+                switch action {
+                case let .move(task, _):
+                    store.moveHistoryTask(task.id, to: target)
+                case let .merge(source):
+                    store.mergeHistoryTopic(source, into: target)
+                }
+            }
+        }
+    }
+
+    private func toggleTopic(_ topicID: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if expandedTopicIDs.contains(topicID) {
+                expandedTopicIDs.remove(topicID)
+            } else {
+                expandedTopicIDs.insert(topicID)
+            }
+        }
+    }
+
+    private func restore(_ task: TaskItem) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            store.setCompleted(task.id, completed: false)
+        }
+    }
+
+    private func delete(_ task: TaskItem) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            store.deleteTask(task.id)
+        }
     }
 }
 
-private struct CompletedDayGroup: Identifiable {
-    let day: Date?
-    let tasks: [TaskItem]
+private enum HistoryArchiveMode: String, CaseIterable, Identifiable {
+    case date = "按日期"
+    case topic = "按事项"
+
+    var id: String { rawValue }
+}
+
+private struct HistoryDaySection: View {
+    let group: HistoryDayGroup
+    let onEdit: (TaskItem) -> Void
+    let onRestore: (TaskItem) -> Void
+    let onDelete: (TaskItem) -> Void
+
+    private var title: String {
+        guard let day = group.day else { return "较早记录" }
+        if Calendar.yiRi.isDateInToday(day) {
+            return "今天 · \(DateFormatter.yiRiDay.string(from: day))"
+        }
+        return DateFormatter.yiRiDay.string(from: day)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(group.tasks.count) 项")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                if group.totalActualSeconds > 0 {
+                    Label(historyDurationText(group.totalActualSeconds), systemImage: "timer")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                if group.manualCompletionCount > 0 {
+                    Text("\(group.manualCompletionCount) 项手动")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            ForEach(group.tasks) { task in
+                CompletedTaskCard(
+                    task: task,
+                    highlighted: false,
+                    onEdit: { onEdit(task) },
+                    onRestore: { onRestore(task) },
+                    onDelete: { onDelete(task) }
+                )
+            }
+        }
+    }
+}
+
+private struct HistoryTopicCard: View {
+    let topic: HistoryTopic
+    let isExpanded: Bool
+    let onToggle: () -> Void
+    let onRename: () -> Void
+    let onMerge: () -> Void
+    let onEdit: (TaskItem) -> Void
+    let onMove: (TaskItem) -> Void
+    let onSplit: (TaskItem) -> Void
+    let onRestore: (TaskItem) -> Void
+    let onDelete: (TaskItem) -> Void
+
+    private var dateRangeText: String {
+        guard let first = topic.firstCompletedAt, let latest = topic.latestCompletedAt else {
+            return "较早记录"
+        }
+        let firstText = DateFormatter.yiRiSidebarDate.string(from: first)
+        let latestText = DateFormatter.yiRiSidebarDate.string(from: latest)
+        return Calendar.yiRi.isDate(first, inSameDayAs: latest)
+            ? latestText
+            : "\(firstText) – \(latestText)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 11) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(YiRiTheme.completionSoft)
+                        .frame(width: 38, height: 38)
+                    Image(systemName: "checkmark.seal")
+                        .foregroundStyle(YiRiTheme.accent)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(topic.name)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(dateRangeText)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Menu {
+                    Button("重命名事项", systemImage: "pencil") { onRename() }
+                    Button("合并到其他事项", systemImage: "arrow.triangle.merge") { onMerge() }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 30)
+            }
+
+            HStack(spacing: 10) {
+                HistoryMetric(value: "\(topic.tasks.count)", label: "完成次数")
+                HistoryMetric(
+                    value: topic.totalActualSeconds > 0 ? historyDurationText(topic.totalActualSeconds) : "未计时",
+                    label: "实际专注"
+                )
+                if topic.manualCompletionCount > 0 {
+                    HistoryMetric(value: "\(topic.manualCompletionCount)", label: "手动完成")
+                }
+            }
+
+            Button {
+                onToggle()
+            } label: {
+                HStack {
+                    Text(isExpanded ? "收起完成记录" : "展开完成记录")
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .font(.caption.weight(.medium))
+                .foregroundStyle(YiRiTheme.accent)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 9) {
+                    ForEach(topic.tasks) { task in
+                        CompletedTaskCard(
+                            task: task,
+                            highlighted: false,
+                            onEdit: { onEdit(task) },
+                            onRestore: { onRestore(task) },
+                            onDelete: { onDelete(task) },
+                            onMoveToTopic: { onMove(task) },
+                            onSplitTopic: { onSplit(task) },
+                            showsCompletionDate: true
+                        )
+                    }
+                }
+                .padding(.leading, 14)
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(YiRiTheme.completionBorder)
+                        .frame(width: 2)
+                        .padding(.vertical, 8)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(14)
+        .background(YiRiTheme.panel)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(YiRiTheme.completionBorder.opacity(0.8), lineWidth: 1)
+        }
+    }
+}
+
+private struct HistoryMetric: View {
+    let value: String
+    let label: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(YiRiTheme.completionSoft.opacity(0.7))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+}
+
+private enum HistoryNameAction: Identifiable {
+    case rename(HistoryTopic)
+    case split(TaskItem)
 
     var id: String {
-        day.map { String($0.timeIntervalSinceReferenceDate) } ?? "legacy"
+        switch self {
+        case let .rename(topic): "rename-\(topic.id)"
+        case let .split(task): "split-\(task.id.uuidString)"
+        }
     }
 
     var title: String {
-        day.map { DateFormatter.yiRiDay.string(from: $0) } ?? "较早记录"
+        switch self {
+        case .rename: "重命名事项"
+        case .split: "拆成新事项"
+        }
+    }
+
+    var initialName: String {
+        switch self {
+        case let .rename(topic): topic.name
+        case let .split(task): task.title
+        }
+    }
+}
+
+private struct HistoryNameSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let action: HistoryNameAction
+    let onSave: (String) -> Void
+    @State private var name: String
+
+    init(action: HistoryNameAction, onSave: @escaping (String) -> Void) {
+        self.action = action
+        self.onSave = onSave
+        _name = State(initialValue: action.initialName)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(action.title)
+                .font(.title3.weight(.semibold))
+            TextField("事项名称", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(save)
+            HStack {
+                Spacer()
+                Button("取消") { dismiss() }
+                Button("保存", action: save)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(22)
+        .frame(width: 390)
+        .background(YiRiTheme.page)
+    }
+
+    private func save() {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onSave(trimmed)
+        dismiss()
+    }
+}
+
+private enum HistorySelectionAction: Identifiable {
+    case move(task: TaskItem, sourceTopicID: String)
+    case merge(HistoryTopic)
+
+    var id: String {
+        switch self {
+        case let .move(task, _): "move-\(task.id.uuidString)"
+        case let .merge(topic): "merge-\(topic.id)"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .move: "移入其他事项"
+        case .merge: "合并事项"
+        }
+    }
+
+    func candidates(from topics: [HistoryTopic]) -> [HistoryTopic] {
+        switch self {
+        case let .move(_, sourceTopicID):
+            return topics.filter { $0.id != sourceTopicID }
+        case let .merge(source):
+            return topics.filter { $0.id != source.id }
+        }
+    }
+}
+
+private struct HistoryTopicPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let action: HistorySelectionAction
+    let candidates: [HistoryTopic]
+    let onSelect: (HistoryTopic) -> Void
+    @State private var selectedID: String?
+
+    init(
+        action: HistorySelectionAction,
+        candidates: [HistoryTopic],
+        onSelect: @escaping (HistoryTopic) -> Void
+    ) {
+        self.action = action
+        self.candidates = candidates
+        self.onSelect = onSelect
+        _selectedID = State(initialValue: candidates.first?.id)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(action.title)
+                .font(.title3.weight(.semibold))
+
+            if candidates.isEmpty {
+                Text("目前没有其他事项可供选择。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
+            } else {
+                Picker("目标事项", selection: $selectedID) {
+                    ForEach(candidates) { topic in
+                        Text("\(topic.name) · \(topic.tasks.count) 次")
+                            .tag(Optional(topic.id))
+                    }
+                }
+                .pickerStyle(.radioGroup)
+            }
+
+            HStack {
+                Spacer()
+                Button("取消") { dismiss() }
+                Button("确认") { save() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedID == nil)
+            }
+        }
+        .padding(22)
+        .frame(width: 420)
+        .background(YiRiTheme.page)
+    }
+
+    private func save() {
+        guard let selectedID,
+              let topic = candidates.first(where: { $0.id == selectedID }) else { return }
+        onSelect(topic)
+        dismiss()
     }
 }
 
@@ -539,9 +927,15 @@ private struct CompletedTaskCard: View {
     let onEdit: () -> Void
     let onRestore: () -> Void
     let onDelete: () -> Void
+    var onMoveToTopic: (() -> Void)? = nil
+    var onSplitTopic: (() -> Void)? = nil
+    var showsCompletionDate = false
 
     private var completedTimeText: String {
         guard let completedAt = task.completedAt else { return "较早完成" }
+        if showsCompletionDate {
+            return "\(DateFormatter.yiRiSidebarDate.string(from: completedAt)) \(DateFormatter.yiRiTime.string(from: completedAt)) 完成"
+        }
         return "\(DateFormatter.yiRiTime.string(from: completedAt)) 完成"
     }
 
@@ -611,6 +1005,12 @@ private struct CompletedTaskCard: View {
         .contextMenu {
             Button("编辑任务") { onEdit() }
             Button("恢复为未完成") { onRestore() }
+            if let onMoveToTopic {
+                Button("移入其他事项") { onMoveToTopic() }
+            }
+            if let onSplitTopic {
+                Button("拆成新事项") { onSplitTopic() }
+            }
             Divider()
             Button("删除任务", role: .destructive) { onDelete() }
         }
@@ -620,6 +1020,12 @@ private struct CompletedTaskCard: View {
         Menu {
             Button("编辑") { onEdit() }
             Button("恢复为未完成") { onRestore() }
+            if let onMoveToTopic {
+                Button("移入其他事项") { onMoveToTopic() }
+            }
+            if let onSplitTopic {
+                Button("拆成新事项") { onSplitTopic() }
+            }
             Divider()
             Button("删除", role: .destructive) { onDelete() }
         } label: {
@@ -632,6 +1038,12 @@ private struct CompletedTaskCard: View {
         .frame(width: 28)
         .accessibilityLabel("任务操作")
     }
+}
+
+private func historyDurationText(_ seconds: Int) -> String {
+    guard seconds > 0 else { return "未计时" }
+    if seconds < 60 { return "< 1 分钟" }
+    return seconds.secondsDurationText
 }
 
 private struct CountBadge: View {

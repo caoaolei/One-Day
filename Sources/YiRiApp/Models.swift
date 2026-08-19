@@ -43,11 +43,66 @@ struct TaskItem: Codable, Identifiable, Hashable {
     var note = ""
     var createdAt = Date()
     var completedAt: Date?
+    var historyGroupID: UUID?
+    var historyGroupName: String?
 
     var completionEffortText: String {
         guard actualSeconds > 0 else { return "手动完成" }
         if actualSeconds < 60 { return "专注不足 1 分钟" }
         return "专注 \(actualSeconds.secondsDurationText)"
+    }
+}
+
+struct FutureWorkdayPlan: Equatable {
+    let dates: [Date]
+    let creatableDates: [Date]
+    let skippedDuplicateCount: Int
+}
+
+struct FutureTaskCreationResult: Equatable {
+    let createdCount: Int
+    let skippedDuplicateCount: Int
+    let firstDate: Date?
+    let lastDate: Date?
+}
+
+struct HistoryDayGroup: Identifiable, Hashable {
+    let day: Date?
+    let tasks: [TaskItem]
+
+    var id: String {
+        day.map { "day-\($0.timeIntervalSinceReferenceDate)" } ?? "legacy"
+    }
+
+    var totalActualSeconds: Int {
+        tasks.reduce(0) { $0 + max(0, $1.actualSeconds) }
+    }
+
+    var manualCompletionCount: Int {
+        tasks.count { $0.actualSeconds <= 0 }
+    }
+}
+
+struct HistoryTopic: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let tasks: [TaskItem]
+    let manualGroupID: UUID?
+
+    var totalActualSeconds: Int {
+        tasks.reduce(0) { $0 + max(0, $1.actualSeconds) }
+    }
+
+    var manualCompletionCount: Int {
+        tasks.count { $0.actualSeconds <= 0 }
+    }
+
+    var firstCompletedAt: Date? {
+        tasks.compactMap(\.completedAt).min()
+    }
+
+    var latestCompletedAt: Date? {
+        tasks.compactMap(\.completedAt).max()
     }
 }
 

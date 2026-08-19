@@ -69,6 +69,9 @@ struct TaskEditorSheet: View {
     @State private var category: String
     @State private var estimatedMinutes: Int
     @State private var scheduledDate: Date
+    @State private var scheduleMode: TaskScheduleMode
+    @State private var workdayCount = 5
+    @State private var skipDuplicates = true
     @State private var suggestionReason = ""
 
     private let categories = ["深度工作", "日常", "写作", "规划", "复盘", "自定义"]
@@ -80,6 +83,23 @@ struct TaskEditorSheet: View {
         _category = State(initialValue: task?.category ?? "深度工作")
         _estimatedMinutes = State(initialValue: task?.estimatedMinutes ?? 45)
         _scheduledDate = State(initialValue: task?.scheduledDate ?? defaultDate)
+        _scheduleMode = State(initialValue: .single)
+    }
+
+    private var futurePlan: FutureWorkdayPlan {
+        store.futureWorkdayPlan(
+            title: title,
+            workdayCount: workdayCount,
+            skipDuplicates: skipDuplicates
+        )
+    }
+
+    private var submitTitle: String {
+        if task != nil { return "保存修改" }
+        if scheduleMode == .workdays { return "创建 \(futurePlan.creatableDates.count) 个任务" }
+        if Calendar.yiRi.isDate(scheduledDate, inSameDayAs: Date()) { return "加入今天" }
+        if Calendar.yiRi.isDate(scheduledDate, inSameDayAs: Date().addingDays(1)) { return "安排到明天" }
+        return "创建未来任务"
     }
 
     var body: some View {
@@ -91,7 +111,35 @@ struct TaskEditorSheet: View {
                 Picker("分类", selection: $category) {
                     ForEach(categories, id: \.self) { Text($0).tag($0) }
                 }
-                DatePicker("安排日期", selection: $scheduledDate, displayedComponents: .date)
+                if task == nil {
+                    Picker("安排方式", selection: $scheduleMode) {
+                        ForEach(TaskScheduleMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                if task != nil || scheduleMode == .single {
+                    DatePicker("安排日期", selection: $scheduledDate, displayedComponents: .date)
+                } else {
+                    Stepper("连续 \(workdayCount) 个工作日", value: $workdayCount, in: 1...92)
+                    Toggle("跳过同一日期的同名任务", isOn: $skipDuplicates)
+                        .toggleStyle(.checkbox)
+
+                    if let firstDate = futurePlan.dates.first, let lastDate = futurePlan.dates.last {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label(
+                                "\(DateFormatter.yiRiSidebarDate.string(from: firstDate)) 至 \(DateFormatter.yiRiSidebarDate.string(from: lastDate))",
+                                systemImage: "calendar.badge.plus"
+                            )
+                            Text("将创建 \(futurePlan.creatableDates.count) 条任务" + (futurePlan.skippedDuplicateCount > 0 ? "，跳过 \(futurePlan.skippedDuplicateCount) 条重复" : ""))
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(YiRiTheme.accent)
+                    }
+                }
                 HStack {
                     Stepper("预计 \(estimatedMinutes.durationText)", value: $estimatedMinutes, in: 5...480, step: 5)
                     Spacer()
@@ -115,7 +163,7 @@ struct TaskEditorSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }
-                Button(task == nil ? "加入今天" : "保存修改") {
+                Button(submitTitle) {
                     let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
                     if var task {
                         task.title = trimmedTitle
@@ -123,23 +171,41 @@ struct TaskEditorSheet: View {
                         task.estimatedMinutes = estimatedMinutes
                         task.scheduledDate = scheduledDate.startOfLocalDay
                         store.updateTask(task)
-                    } else {
+                    } else if scheduleMode == .single {
                         store.addTask(
                             title: trimmedTitle,
                             category: category,
                             estimatedMinutes: estimatedMinutes,
                             date: scheduledDate
                         )
+                    } else {
+                        store.addFutureWorkdayTasks(
+                            title: trimmedTitle,
+                            category: category,
+                            estimatedMinutes: estimatedMinutes,
+                            workdayCount: workdayCount,
+                            skipDuplicates: skipDuplicates
+                        )
                     }
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(
+                    title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || (task == nil && scheduleMode == .workdays && futurePlan.creatableDates.isEmpty)
+                )
             }
         }
         .padding(24)
-        .frame(width: 560, height: 440)
+        .frame(width: 580, height: task == nil ? 520 : 440)
     }
+}
+
+private enum TaskScheduleMode: String, CaseIterable, Identifiable {
+    case single = "单日"
+    case workdays = "连续工作日"
+
+    var id: String { rawValue }
 }
 
 struct MeetingEditorSheet: View {

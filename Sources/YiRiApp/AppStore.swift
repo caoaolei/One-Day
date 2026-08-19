@@ -147,6 +147,118 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func completedTasks() -> [TaskItem] {
+        tasks
+            .filter(\.isCompleted)
+            .sorted { left, right in
+                switch (left.completedAt, right.completedAt) {
+                case let (leftDate?, rightDate?):
+                    return leftDate > rightDate
+                case (nil, nil):
+                    return left.createdAt > right.createdAt
+                case (nil, _):
+                    return false
+                case (_, nil):
+                    return true
+                }
+            }
+    }
+
+    func completedDayGroups() -> [HistoryDayGroup] {
+        HistoryInsights.dayGroups(from: completedTasks())
+    }
+
+    func historyTopics() -> [HistoryTopic] {
+        HistoryInsights.topics(from: completedTasks())
+    }
+
+    func futureWorkdayPlan(
+        title: String,
+        workdayCount: Int,
+        skipDuplicates: Bool,
+        referenceDate: Date? = nil
+    ) -> FutureWorkdayPlan {
+        let count = min(92, max(1, workdayCount))
+        let dates = Self.nextWorkdays(after: referenceDate ?? nowProvider(), count: count)
+        guard skipDuplicates else {
+            return FutureWorkdayPlan(dates: dates, creatableDates: dates, skippedDuplicateCount: 0)
+        }
+
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let creatableDates = dates.filter { date in
+            !tasks.contains { task in
+                task.title == trimmedTitle
+                    && task.scheduledDate.map { Calendar.yiRi.isDate($0, inSameDayAs: date) } == true
+            }
+        }
+        return FutureWorkdayPlan(
+            dates: dates,
+            creatableDates: creatableDates,
+            skippedDuplicateCount: dates.count - creatableDates.count
+        )
+    }
+
+    @discardableResult
+    func addFutureWorkdayTasks(
+        title: String,
+        category: String,
+        estimatedMinutes: Int,
+        workdayCount: Int,
+        skipDuplicates: Bool,
+        referenceDate: Date? = nil
+    ) -> FutureTaskCreationResult {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else {
+            return FutureTaskCreationResult(createdCount: 0, skippedDuplicateCount: 0, firstDate: nil, lastDate: nil)
+        }
+        let plan = futureWorkdayPlan(
+            title: trimmedTitle,
+            workdayCount: workdayCount,
+            skipDuplicates: skipDuplicates,
+            referenceDate: referenceDate
+        )
+        for date in plan.creatableDates {
+            tasks.append(TaskItem(
+                title: trimmedTitle,
+                category: category,
+                estimatedMinutes: max(5, estimatedMinutes),
+                scheduledDate: date.startOfLocalDay
+            ))
+        }
+        save()
+        return FutureTaskCreationResult(
+            createdCount: plan.creatableDates.count,
+            skippedDuplicateCount: plan.skippedDuplicateCount,
+            firstDate: plan.dates.first,
+            lastDate: plan.dates.last
+        )
+    }
+
+    func renameHistoryTopic(_ topic: HistoryTopic, to name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        let groupID = materializedGroupID(for: topic)
+        assignHistoryGroup(taskIDs: Set(topic.tasks.map(\.id)), groupID: groupID, name: trimmedName)
+    }
+
+    func moveHistoryTask(_ taskID: UUID, to topic: HistoryTopic) {
+        let groupID = materializedGroupID(for: topic)
+        let targetIDs = Set(topic.tasks.map(\.id)).union([taskID])
+        assignHistoryGroup(taskIDs: targetIDs, groupID: groupID, name: topic.name)
+    }
+
+    func splitHistoryTask(_ taskID: UUID, newTopicName: String) {
+        let trimmedName = newTopicName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        assignHistoryGroup(taskIDs: [taskID], groupID: UUID(), name: trimmedName)
+    }
+
+    func mergeHistoryTopic(_ source: HistoryTopic, into target: HistoryTopic) {
+        let groupID = materializedGroupID(for: target)
+        let taskIDs = Set(source.tasks.map(\.id)).union(target.tasks.map(\.id))
+        assignHistoryGroup(taskIDs: taskIDs, groupID: groupID, name: target.name)
+    }
+
     @discardableResult
     func moveTask(_ id: UUID, to lane: BoardLane, referenceDate: Date? = nil) -> Bool {
         guard let index = tasks.firstIndex(where: { $0.id == id }) else { return false }
@@ -207,6 +319,43 @@ final class AppStore: ObservableObject {
         )
         tasks.append(task)
         save()
+    }
+
+    private static func nextWorkdays(after referenceDate: Date, count: Int) -> [Date] {
+        guard count > 0 else { return [] }
+        var dates: [Date] = []
+        var cursor = referenceDate.startOfLocalDay
+        while dates.count < count {
+            cursor = cursor.addingDays(1)
+            let weekday = Calendar.yiRi.component(.weekday, from: cursor)
+            if (2...6).contains(weekday) { dates.append(cursor) }
+        }
+        return dates
+    }
+
+    private func materializedGroupID(for topic: HistoryTopic) -> UUID {
+        if let groupID = topic.manualGroupID { return groupID }
+        let groupID = UUID()
+        assignHistoryGroup(
+            taskIDs: Set(topic.tasks.map(\.id)),
+            groupID: groupID,
+            name: topic.name,
+            shouldSave: false
+        )
+        return groupID
+    }
+
+    private func assignHistoryGroup(
+        taskIDs: Set<UUID>,
+        groupID: UUID,
+        name: String,
+        shouldSave: Bool = true
+    ) {
+        for index in tasks.indices where taskIDs.contains(tasks[index].id) {
+            tasks[index].historyGroupID = groupID
+            tasks[index].historyGroupName = name
+        }
+        if shouldSave { save() }
     }
 
     func updateTask(_ task: TaskItem) {
