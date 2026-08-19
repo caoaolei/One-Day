@@ -33,6 +33,22 @@ enum YiRiTheme {
         light: NSColor(red: 0.88, green: 0.90, blue: 0.87, alpha: 1),
         dark: NSColor(red: 0.25, green: 0.29, blue: 0.25, alpha: 1)
     )
+    static let completionColumn = dynamic(
+        light: NSColor(red: 0.965, green: 0.978, blue: 0.958, alpha: 1),
+        dark: NSColor(red: 0.145, green: 0.178, blue: 0.150, alpha: 1)
+    )
+    static let completionSoft = dynamic(
+        light: NSColor(red: 0.925, green: 0.962, blue: 0.915, alpha: 1),
+        dark: NSColor(red: 0.185, green: 0.245, blue: 0.190, alpha: 1)
+    )
+    static let completionBorder = dynamic(
+        light: NSColor(red: 0.760, green: 0.855, blue: 0.742, alpha: 1),
+        dark: NSColor(red: 0.315, green: 0.455, blue: 0.325, alpha: 1)
+    )
+    static let completionHighlight = dynamic(
+        light: NSColor(red: 0.820, green: 0.900, blue: 0.705, alpha: 1),
+        dark: NSColor(red: 0.415, green: 0.585, blue: 0.390, alpha: 1)
+    )
 
     private static func dynamic(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in

@@ -12,12 +12,15 @@ struct AppStoreChecks {
         suite.run("损坏数据先备份再恢复", suite.checkCorruptDataRecovery)
         suite.run("首次启动不注入演示活动", suite.checkCleanFirstLaunch)
         suite.run("偶数历史记录使用平均中位数", suite.checkEvenMedian)
+        suite.run("完成任务按日期分组并限制最近二十条", suite.checkCompletedGrouping)
+        suite.run("完成与恢复立即更新看板分组", suite.checkCompleteAndRestore)
+        suite.run("零计时任务显示为手动完成", suite.checkCompletionEffortText)
 
         if suite.failureCount > 0 {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 6 checks")
+        print("PASSED: 9 checks")
     }
 }
 
@@ -128,6 +131,63 @@ private struct CheckSuite {
         context.store.updateTask(tasks[1])
 
         try expect(context.store.autoEstimate(title: "新分析", category: "分析").minutes == 30, "偶数中位数不是 30 分钟")
+    }
+
+    func checkCompletedGrouping() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        context.store.addTask(title: "逾期但今天完成", category: "测试", estimatedMinutes: 10, date: context.clock.now.addingDays(-3))
+        let todayTask = try require(context.store.tasks.first, "找不到今日完成任务")
+        context.store.setCompleted(todayTask.id, completed: true)
+
+        context.store.addTask(title: "旧数据", category: "测试", estimatedMinutes: 10, date: context.clock.now.addingDays(-8))
+        var legacyTask = try require(context.store.tasks.first(where: { $0.title == "旧数据" }), "找不到旧数据任务")
+        legacyTask.isCompleted = true
+        legacyTask.completedAt = nil
+        context.store.updateTask(legacyTask)
+
+        for day in 1...25 {
+            context.store.addTask(title: "更早 \(day)", category: "测试", estimatedMinutes: 10, date: context.clock.now.addingDays(-day))
+            var task = try require(context.store.tasks.first(where: { $0.title == "更早 \(day)" }), "找不到更早完成任务")
+            task.isCompleted = true
+            task.completedAt = context.clock.now.addingDays(-day).addingTimeInterval(TimeInterval(day))
+            context.store.updateTask(task)
+        }
+
+        let completedToday = context.store.completedToday(referenceDate: context.clock.now)
+        let earlier = context.store.earlierCompleted(referenceDate: context.clock.now)
+        try expect(completedToday.map(\.id) == [todayTask.id], "逾期任务今天完成后没有计入今日成果")
+        try expect(earlier.count == 20, "更早完成没有限制为最近 20 条")
+        try expect(context.store.earlierCompletedCount(referenceDate: context.clock.now) == 26, "更早完成总数被最近 20 条截断")
+        try expect(earlier.first?.title == "更早 1", "更早完成没有按完成时间倒序")
+        try expect(!earlier.contains(where: { $0.id == legacyTask.id }), "旧数据应在更早分组，但需排在有时间记录之后")
+
+        let allEarlier = context.store.earlierCompleted(referenceDate: context.clock.now, limit: 30)
+        try expect(allEarlier.last?.id == legacyTask.id, "缺少完成时间的旧数据没有归入更早完成")
+    }
+
+    func checkCompleteAndRestore() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        context.store.addTask(title: "可恢复任务", category: "测试", estimatedMinutes: 10, date: context.clock.now)
+        let task = try require(context.store.tasks.first, "找不到可恢复任务")
+        context.store.setCompleted(task.id, completed: true)
+
+        try expect(context.store.tasks(on: context.clock.now).filter { !$0.isCompleted }.isEmpty, "完成后仍留在今天待办")
+        try expect(context.store.completedToday(referenceDate: context.clock.now).count == 1, "完成后今日成果数量没有更新")
+
+        context.store.setCompleted(task.id, completed: false)
+        try expect(context.store.tasks(on: context.clock.now).filter { !$0.isCompleted }.map(\.id) == [task.id], "恢复后没有回到今天待办")
+        try expect(context.store.completedToday(referenceDate: context.clock.now).isEmpty, "恢复后今日成果数量没有更新")
+    }
+
+    func checkCompletionEffortText() throws {
+        var task = TaskItem(title: "手动完成", category: "测试", estimatedMinutes: 10)
+        try expect(task.completionEffortText == "手动完成", "零计时显示了误导性的 0 分钟")
+        task.actualSeconds = 120
+        try expect(task.completionEffortText == "专注 2 分钟", "实际专注用时文案不正确")
     }
 
     private func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {

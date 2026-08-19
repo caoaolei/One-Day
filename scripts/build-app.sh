@@ -63,6 +63,7 @@ env \
   SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_PATH/module-cache" \
   "$SWIFT_BIN" build \
     -c release \
+    -Xswiftc -warnings-as-errors \
     --scratch-path "$BUILD_PATH" \
     --cache-path "$CACHE_PATH"
 

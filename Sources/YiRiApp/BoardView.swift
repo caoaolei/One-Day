@@ -4,6 +4,8 @@ struct BoardView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showingTaskEditor = false
     @State private var editingTask: TaskItem?
+    @State private var showingEarlierCompleted = false
+    @State private var highlightedCompletedID: UUID?
 
     private var overdue: [TaskItem] {
         store.overdueTasks()
@@ -13,10 +15,16 @@ struct BoardView: View {
         store.tasks(on: Date()).filter { !$0.isCompleted }
     }
 
-    private var completed: [TaskItem] {
-        Array(store.tasks.filter(\.isCompleted).sorted {
-            ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast)
-        }.prefix(20))
+    private var completedToday: [TaskItem] {
+        store.completedToday()
+    }
+
+    private var earlierCompleted: [TaskItem] {
+        store.earlierCompleted()
+    }
+
+    private var earlierCompletedCount: Int {
+        store.earlierCompletedCount()
     }
 
     private var unplannedOrUpcoming: [TaskItem] {
@@ -49,21 +57,26 @@ struct BoardView: View {
                         subtitle: "含更早未完成",
                         tasks: overdue,
                         accent: false,
-                        onEdit: edit
+                        onEdit: edit,
+                        onComplete: complete
                     )
                     BoardColumn(
                         title: "今天",
                         subtitle: "今日待完成",
                         tasks: today,
                         accent: true,
-                        onEdit: edit
+                        onEdit: edit,
+                        onComplete: complete
                     )
-                    BoardColumn(
-                        title: "已完成",
-                        subtitle: "最近 20 条",
-                        tasks: completed,
-                        accent: false,
-                        onEdit: edit
+                    CompletedWall(
+                        todayTasks: completedToday,
+                        earlierTasks: earlierCompleted,
+                        earlierTotalCount: earlierCompletedCount,
+                        showingEarlier: $showingEarlierCompleted,
+                        highlightedTaskID: highlightedCompletedID,
+                        onEdit: edit,
+                        onRestore: restore,
+                        onDelete: delete
                     )
                 }
 
@@ -86,7 +99,12 @@ struct BoardView: View {
                                 spacing: 12
                             ) {
                                 ForEach(unplannedOrUpcoming) { task in
-                                    BoardTaskCard(task: task, accent: false, onEdit: { edit(task) })
+                                    BoardTaskCard(
+                                        task: task,
+                                        accent: false,
+                                        onEdit: { edit(task) },
+                                        onComplete: { complete(task) }
+                                    )
                                 }
                             }
                         }
@@ -108,6 +126,34 @@ struct BoardView: View {
     private func edit(_ task: TaskItem) {
         editingTask = task
     }
+
+    private func complete(_ task: TaskItem) {
+        withAnimation(.easeOut(duration: 0.25)) {
+            highlightedCompletedID = task.id
+            store.setCompleted(task.id, completed: true)
+        }
+
+        let taskID = task.id
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.1))
+            guard highlightedCompletedID == taskID else { return }
+            withAnimation(.easeOut(duration: 0.22)) {
+                highlightedCompletedID = nil
+            }
+        }
+    }
+
+    private func restore(_ task: TaskItem) {
+        withAnimation(.easeInOut(duration: 0.22)) {
+            store.setCompleted(task.id, completed: false)
+        }
+    }
+
+    private func delete(_ task: TaskItem) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            store.deleteTask(task.id)
+        }
+    }
 }
 
 private struct BoardColumn: View {
@@ -116,6 +162,7 @@ private struct BoardColumn: View {
     let tasks: [TaskItem]
     let accent: Bool
     let onEdit: (TaskItem) -> Void
+    let onComplete: (TaskItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -128,13 +175,7 @@ private struct BoardColumn: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("\(tasks.count)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(YiRiTheme.secondaryPanel)
-                    .clipShape(Capsule())
+                CountBadge(count: tasks.count)
             }
             .padding(.horizontal, 3)
 
@@ -145,7 +186,12 @@ private struct BoardColumn: View {
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else {
                 ForEach(tasks) { task in
-                    BoardTaskCard(task: task, accent: accent, onEdit: { onEdit(task) })
+                    BoardTaskCard(
+                        task: task,
+                        accent: accent,
+                        onEdit: { onEdit(task) },
+                        onComplete: { onComplete(task) }
+                    )
                 }
             }
         }
@@ -160,14 +206,336 @@ private struct BoardColumn: View {
     }
 }
 
+private struct CompletedWall: View {
+    let todayTasks: [TaskItem]
+    let earlierTasks: [TaskItem]
+    let earlierTotalCount: Int
+    @Binding var showingEarlier: Bool
+    let highlightedTaskID: UUID?
+    let onEdit: (TaskItem) -> Void
+    let onRestore: (TaskItem) -> Void
+    let onDelete: (TaskItem) -> Void
+
+    private var totalCount: Int {
+        todayTasks.count + earlierTotalCount
+    }
+
+    private var focusSeconds: Int {
+        todayTasks.reduce(0) { $0 + max(0, $1.actualSeconds) }
+    }
+
+    private var focusText: String {
+        guard focusSeconds > 0 else { return "—" }
+        if focusSeconds < 60 { return "< 1 分钟" }
+        return focusSeconds.secondsDurationText
+    }
+
+    private var earlierGroups: [CompletedDayGroup] {
+        let grouped = Dictionary(grouping: earlierTasks) { task in
+            task.completedAt?.startOfLocalDay
+        }
+        return grouped
+            .map { CompletedDayGroup(day: $0.key, tasks: $0.value) }
+            .sorted { ($0.day ?? .distantPast) > ($1.day ?? .distantPast) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("已完成")
+                        .font(.headline)
+                    Text("把完成的事情好好记住")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                CountBadge(count: totalCount, completed: true)
+            }
+            .padding(.horizontal, 3)
+
+            completionSummary
+
+            HStack {
+                Text("今天")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(YiRiTheme.accent)
+                Spacer()
+                Text("\(todayTasks.count) 项")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 3)
+
+            if todayTasks.isEmpty {
+                VStack(spacing: 7) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 23, weight: .light))
+                        .foregroundStyle(YiRiTheme.accent.opacity(0.7))
+                    Text("今天完成的任务会出现在这里")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 78)
+                .background(YiRiTheme.panel.opacity(0.55))
+                .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            } else {
+                ForEach(todayTasks) { task in
+                    CompletedTaskCard(
+                        task: task,
+                        highlighted: highlightedTaskID == task.id,
+                        onEdit: { onEdit(task) },
+                        onRestore: { onRestore(task) },
+                        onDelete: { onDelete(task) }
+                    )
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.96)),
+                            removal: .opacity
+                        )
+                    )
+                }
+            }
+
+            if earlierTotalCount > 0 {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        showingEarlier.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .rotationEffect(.degrees(showingEarlier ? 90 : 0))
+                        Text("更早完成")
+                            .font(.caption.weight(.medium))
+                        Spacer()
+                        Text("\(earlierTotalCount) 项")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.primary)
+                .padding(.top, 2)
+
+                if showingEarlier {
+                    ForEach(earlierGroups) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(group.title)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 3)
+
+                            ForEach(group.tasks) { task in
+                                CompletedTaskCard(
+                                    task: task,
+                                    highlighted: false,
+                                    onEdit: { onEdit(task) },
+                                    onRestore: { onRestore(task) },
+                                    onDelete: { onDelete(task) }
+                                )
+                            }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .background(YiRiTheme.completionColumn)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(YiRiTheme.completionBorder.opacity(0.85), lineWidth: 1)
+        }
+    }
+
+    private var completionSummary: some View {
+        HStack(spacing: 11) {
+            ZStack {
+                Circle()
+                    .fill(YiRiTheme.panel.opacity(0.86))
+                    .frame(width: 36, height: 36)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(YiRiTheme.accent)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(todayTasks.isEmpty ? "今日成果" : "完成 \(todayTasks.count) 项")
+                    .font(.subheadline.weight(.semibold))
+                Text(todayTasks.isEmpty ? "每一次完成都值得记录" : "今天已经向前走了一步")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 6)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(focusText)
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                Text("实际专注")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(11)
+        .background {
+            LinearGradient(
+                colors: [YiRiTheme.completionSoft, YiRiTheme.completionHighlight.opacity(0.42)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(YiRiTheme.completionBorder.opacity(0.75), lineWidth: 1)
+        }
+    }
+}
+
+private struct CompletedDayGroup: Identifiable {
+    let day: Date?
+    let tasks: [TaskItem]
+
+    var id: String {
+        day.map { String($0.timeIntervalSinceReferenceDate) } ?? "legacy"
+    }
+
+    var title: String {
+        day.map { DateFormatter.yiRiDay.string(from: $0) } ?? "较早记录"
+    }
+}
+
+private struct CompletedTaskCard: View {
+    let task: TaskItem
+    let highlighted: Bool
+    let onEdit: () -> Void
+    let onRestore: () -> Void
+    let onDelete: () -> Void
+
+    private var completedTimeText: String {
+        guard let completedAt = task.completedAt else { return "较早完成" }
+        return "\(DateFormatter.yiRiTime.string(from: completedAt)) 完成"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .top, spacing: 9) {
+                ZStack {
+                    Circle()
+                        .fill(highlighted ? YiRiTheme.completionHighlight : YiRiTheme.completionSoft)
+                        .frame(width: 24, height: 24)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(YiRiTheme.accent)
+                }
+
+                Text(task.title)
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                taskMenu
+            }
+
+            HStack(spacing: 7) {
+                Text(task.category)
+                    .font(.caption2)
+                    .foregroundStyle(YiRiTheme.accent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(YiRiTheme.completionSoft)
+                    .clipShape(Capsule())
+                Spacer()
+            }
+
+            HStack(spacing: 8) {
+                Label(task.completionEffortText, systemImage: task.actualSeconds > 0 ? "timer" : "hand.tap")
+                Spacer()
+                Text(completedTimeText)
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            LinearGradient(
+                colors: [YiRiTheme.panel, YiRiTheme.completionSoft.opacity(0.52)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(
+                    highlighted ? YiRiTheme.completionHighlight : YiRiTheme.completionBorder,
+                    lineWidth: highlighted ? 1.6 : 1
+                )
+        }
+        .shadow(
+            color: highlighted ? YiRiTheme.completionHighlight.opacity(0.34) : .clear,
+            radius: highlighted ? 9 : 0,
+            y: highlighted ? 3 : 0
+        )
+        .scaleEffect(highlighted ? 1.012 : 1)
+        .animation(.easeOut(duration: 0.24), value: highlighted)
+        .contextMenu {
+            Button("编辑任务") { onEdit() }
+            Button("恢复为未完成") { onRestore() }
+            Divider()
+            Button("删除任务", role: .destructive) { onDelete() }
+        }
+    }
+
+    private var taskMenu: some View {
+        Menu {
+            Button("编辑") { onEdit() }
+            Button("恢复为未完成") { onRestore() }
+            Divider()
+            Button("删除", role: .destructive) { onDelete() }
+        } label: {
+            Image(systemName: "ellipsis")
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: 28)
+        .accessibilityLabel("任务操作")
+    }
+}
+
+private struct CountBadge: View {
+    let count: Int
+    var completed = false
+
+    var body: some View {
+        Text("\(count)")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(completed ? YiRiTheme.accent : Color.secondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(completed ? YiRiTheme.completionSoft : YiRiTheme.secondaryPanel)
+            .clipShape(Capsule())
+    }
+}
+
 private struct BoardTaskCard: View {
     @EnvironmentObject private var store: AppStore
     let task: TaskItem
     let accent: Bool
     let onEdit: () -> Void
+    let onComplete: () -> Void
 
-    private var scheduleText: String? {
-        guard !task.isCompleted else { return nil }
+    private var scheduleText: String {
         guard let date = task.scheduledDate else { return "待安排" }
         return DateFormatter.yiRiSidebarDate.string(from: date)
     }
@@ -183,34 +551,14 @@ private struct BoardTaskCard: View {
                     .background(YiRiTheme.secondaryPanel)
                     .clipShape(Capsule())
                 Spacer()
-                Menu {
-                    Button("编辑") { onEdit() }
-                    if !task.isCompleted {
-                        Divider()
-                        Button("安排到今天") { store.moveTask(task.id, to: Date()) }
-                        Button("安排到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }
-                        Button("标记完成") { store.setCompleted(task.id, completed: true) }
-                    }
-                    Divider()
-                    Button("删除", role: .destructive) { store.deleteTask(task.id) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .frame(width: 28)
+                taskMenu
             }
             Text(task.title)
                 .font(.subheadline.weight(.medium))
-                .strikethrough(task.isCompleted)
             HStack {
-                Text(task.isCompleted ? "实际 \(task.actualSeconds.secondsDurationText)" : "预计 \(task.estimatedMinutes.durationText)")
+                Text("预计 \(task.estimatedMinutes.durationText)")
                 Spacer()
-                if let scheduleText {
-                    Text(scheduleText)
-                }
+                Text(scheduleText)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -233,12 +581,32 @@ private struct BoardTaskCard: View {
         }
         .contextMenu {
             Button("编辑任务") { onEdit() }
-            if !task.isCompleted {
-                Button("安排到今天") { store.moveTask(task.id, to: Date()) }
-                Button("安排到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }
-            }
+            Button("标记完成") { onComplete() }
+            Divider()
+            Button("安排到今天") { store.moveTask(task.id, to: Date()) }
+            Button("安排到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }
             Divider()
             Button("删除任务", role: .destructive) { store.deleteTask(task.id) }
         }
+    }
+
+    private var taskMenu: some View {
+        Menu {
+            Button("编辑") { onEdit() }
+            Divider()
+            Button("安排到今天") { store.moveTask(task.id, to: Date()) }
+            Button("安排到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }
+            Button("标记完成") { onComplete() }
+            Divider()
+            Button("删除", role: .destructive) { store.deleteTask(task.id) }
+        } label: {
+            Image(systemName: "ellipsis")
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: 28)
+        .accessibilityLabel("任务操作")
     }
 }

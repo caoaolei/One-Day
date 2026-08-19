@@ -37,6 +37,12 @@ struct TaskItem: Codable, Identifiable, Hashable {
     var note = ""
     var createdAt = Date()
     var completedAt: Date?
+
+    var completionEffortText: String {
+        guard actualSeconds > 0 else { return "手动完成" }
+        if actualSeconds < 60 { return "专注不足 1 分钟" }
+        return "专注 \(actualSeconds.secondsDurationText)"
+    }
 }
 
 struct MeetingItem: Codable, Identifiable, Hashable {

@@ -102,6 +102,55 @@ final class AppStore: ObservableObject {
             }
     }
 
+    func completedToday(referenceDate: Date = Date()) -> [TaskItem] {
+        tasks
+            .filter { item in
+                guard item.isCompleted, let completedAt = item.completedAt else { return false }
+                return Calendar.yiRi.isDate(completedAt, inSameDayAs: referenceDate)
+            }
+            .sorted {
+                ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast)
+            }
+    }
+
+    func earlierCompleted(referenceDate: Date = Date(), limit: Int = 20) -> [TaskItem] {
+        guard limit > 0 else { return [] }
+        return Array(
+            tasks
+                .filter { item in
+                    guard item.isCompleted else { return false }
+                    guard let completedAt = item.completedAt else { return true }
+                    return !Calendar.yiRi.isDate(completedAt, inSameDayAs: referenceDate)
+                }
+                .sorted {
+                    switch ($0.completedAt, $1.completedAt) {
+                    case let (left?, right?):
+                        return left > right
+                    case (nil, nil):
+                        return $0.createdAt > $1.createdAt
+                    case (nil, _):
+                        return false
+                    case (_, nil):
+                        return true
+                    }
+                }
+                .prefix(limit)
+        )
+    }
+
+    func earlierCompletedCount(referenceDate: Date = Date()) -> Int {
+        tasks.reduce(into: 0) { count, item in
+            guard item.isCompleted else { return }
+            guard let completedAt = item.completedAt else {
+                count += 1
+                return
+            }
+            if !Calendar.yiRi.isDate(completedAt, inSameDayAs: referenceDate) {
+                count += 1
+            }
+        }
+    }
+
     func meetings(on date: Date) -> [MeetingItem] {
         meetings
             .filter { Calendar.yiRi.isDate($0.startDate, inSameDayAs: date) }
