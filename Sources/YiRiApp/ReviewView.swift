@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ReviewView: View {
     @EnvironmentObject private var store: AppStore
-    @EnvironmentObject private var worktime: WorktimeController
     @State private var note = ""
     @State private var showingFinalizeConfirmation = false
     @State private var completionSummary: ReviewCompletionSummary?
@@ -37,9 +36,9 @@ struct ReviewView: View {
         }
         .alert("确认完成今日复盘？", isPresented: $showingFinalizeConfirmation) {
             Button("再检查一下", role: .cancel) {}
-            Button("确认并结束今天") { finalizeReview() }
+            Button("确认并封存复盘") { finalizeReview() }
         } message: {
-            Text("确认后，今天与复盘页面将不再展示今日任务，今天的复盘也不能再次修改。进行中的任务计时和自动工时都会结束，未完成任务会按当前处理方式安排。")
+            Text("确认后，今天与复盘页面将不再展示今日任务，今天的复盘也不能再次修改。进行中的任务计时会停止，未完成任务会按当前处理方式安排；自动工时仍会继续，直到你在工时页面手动结束今天。")
         }
         .sheet(item: $completionSummary) { summary in
             ReviewCompletionSheet(summary: summary)
@@ -159,8 +158,6 @@ struct ReviewView: View {
         if store.activeTask != nil {
             store.finishActiveTask()
         }
-        _ = worktime.endToday()
-
         let finalTasks = store.tasks(on: Date())
         let finalCompleted = finalTasks.filter(\.isCompleted)
         let focusedSeconds = finalCompleted.reduce(0) { result, task in

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct WorktimeView: View {
     @EnvironmentObject private var worktime: WorktimeController
-    @EnvironmentObject private var store: AppStore
     @State private var editingRecord: DailyWorktimeRecord?
     @State private var displayedMonth = Date()
 
@@ -21,9 +20,7 @@ struct WorktimeView: View {
                     records: worktime.records,
                     targetMinutes: worktime.settings.dailyTargetMinutes
                 ) { record in
-                    if !Calendar.yiRi.isDateInToday(record.workDate) || !store.isDayFinalized(Date()) {
-                        editingRecord = record
-                    }
+                    editingRecord = record
                 }
 
                 Panel {
@@ -86,7 +83,7 @@ struct WorktimeView: View {
                     .font(.system(size: 28, weight: .medium))
             }
             Spacer()
-            if let today = worktime.record(on: Date()), !store.isDayFinalized(Date()) {
+            if let today = worktime.record(on: Date()) {
                 Button {
                     editingRecord = today
                 } label: {
@@ -107,7 +104,6 @@ struct WorktimeView: View {
 
 struct WorktimeSummaryCard: View {
     @EnvironmentObject private var worktime: WorktimeController
-    @EnvironmentObject private var store: AppStore
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -127,15 +123,17 @@ struct WorktimeSummaryCard: View {
 
                     if let record {
                         let expectedEnd = record.expectedEndAt(targetMinutes: worktime.settings.dailyTargetMinutes)
-                        HStack(spacing: 24) {
+                        HStack(spacing: 0) {
                             WorktimeMetric(
                                 value: DateFormatter.yiRiTime.string(from: record.effectiveStartAt),
                                 label: "上班时间"
                             )
+                            Divider().frame(height: 42)
                             WorktimeMetric(
                                 value: record.spanSeconds.worktimeDurationText,
                                 label: "今日工时"
                             )
+                            Divider().frame(height: 42)
                             WorktimeMetric(
                                 value: DateFormatter.yiRiTime.string(
                                     from: record.isClosed ? record.effectiveEndAt : expectedEnd
@@ -164,16 +162,10 @@ struct WorktimeSummaryCard: View {
                                 .foregroundStyle(.secondary)
                             Spacer()
                             if record.isClosed {
-                                if store.isDayFinalized(context.date) {
-                                    Label("复盘已封存", systemImage: "lock.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Button("继续记录") {
-                                        worktime.resumeToday(at: context.date)
-                                    }
-                                    .buttonStyle(.bordered)
+                                Button("继续记录") {
+                                    worktime.resumeToday(at: context.date)
                                 }
+                                .buttonStyle(.bordered)
                             } else {
                                 Button("结束今天") {
                                     worktime.endToday(at: context.date)
@@ -371,7 +363,7 @@ private struct WorktimeCalendarBoard: View {
                 LazyVGrid(columns: columns, spacing: 8) {
                     ForEach(weekdayTitles, id: \.self) { title in
                         Text(title)
-                            .font(.caption2.weight(.semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
                     }
@@ -389,7 +381,7 @@ private struct WorktimeCalendarBoard: View {
                             }
                             .buttonStyle(.plain)
                         } else {
-                            Color.clear.frame(minHeight: 100)
+                            Color.clear.frame(minHeight: 112)
                         }
                     }
                 }
@@ -430,11 +422,11 @@ private struct WorktimeCalendarDayCell: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("\(Calendar.yiRi.component(.day, from: day))")
-                    .font(.caption.weight(isToday ? .bold : .medium))
+                    .font(.system(size: 13, weight: isToday ? .bold : .semibold, design: .rounded))
                 Spacer()
                 if reachedTarget {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(YiRiTheme.accent)
                 }
             }
@@ -460,10 +452,10 @@ private struct WorktimeCalendarDayCell: View {
                 Spacer()
             }
         }
-        .font(.system(size: 10, design: .rounded))
+        .font(.system(size: 12, design: .rounded))
         .monospacedDigit()
-        .padding(9)
-        .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
         .background(reachedTarget ? YiRiTheme.completionSoft.opacity(0.66) : YiRiTheme.secondaryPanel.opacity(0.58))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
@@ -489,7 +481,7 @@ private struct WorktimeMonthStat: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(11)
@@ -504,15 +496,17 @@ private struct WorktimeMetric: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .center, spacing: 4) {
             Text(value)
-                .font(.system(size: 22, weight: .medium, design: .rounded))
+                .font(.system(size: 23, weight: .medium, design: .rounded))
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 }
 

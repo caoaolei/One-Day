@@ -21,9 +21,9 @@ enum DayClosureDestination {
     var message: String {
         switch self {
         case .today:
-            "计划与记录已经封存。今晚先照顾好自己，明天醒来，再从新的一页开始。"
+            "今日计划与复盘已经封存。自动工时仍会继续，需要下班时请前往“工时”手动结束今天。"
         case .review:
-            "不用再回头修改今天。完成的值得肯定，没完成的也不必苛责，安心休息吧。"
+            "复盘已经归档，不用再回头修改。自动工时仍独立记录，需要下班时请前往“工时”结束今天。"
         }
     }
 }
@@ -107,7 +107,7 @@ struct DayClosureView: View {
                 .offset(y: appeared ? 0 : 10)
                 .opacity(appeared ? 1 : 0)
 
-                Text("\(DateFormatter.yiRiDay.string(from: date)) · 明天见")
+                Text("\(DateFormatter.yiRiDay.string(from: date)) · 工时独立记录")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)

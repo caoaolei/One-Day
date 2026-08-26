@@ -22,6 +22,7 @@ struct AppStoreChecks {
         suite.run("相似任务按名称而非分类归组", suite.checkAutomaticHistoryTopics)
         suite.run("人工事项整理持久化且不学习未来任务", suite.checkManualHistoryTopics)
         suite.run("完成复盘后当天封存且不可覆盖", suite.checkReviewFinalization)
+        suite.run("完成复盘后自动工时继续记录", suite.checkReviewKeepsWorktimeRunning)
         suite.run("自动工时按最晚减最早计算", suite.checkWorktimeSpanIncludesBreaks)
         suite.run("凌晨活动正确归入前一工作日", suite.checkWorktimeDayBoundary)
         suite.run("结束工时后停止自动更新", suite.checkClosedWorktimeIgnoresActivity)
@@ -34,7 +35,7 @@ struct AppStoreChecks {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 23 checks")
+        print("PASSED: 24 checks")
     }
 }
 
@@ -519,6 +520,32 @@ private struct CheckSuite {
         context.clock.advance(seconds: 24 * 60 * 60)
         try expect(!context.store.isDayFinalized(context.clock.now), "新的一天仍被错误锁定")
         try expect(context.store.saveReview(note: "第二天复盘"), "新的一天无法完成复盘")
+    }
+
+    func checkReviewKeepsWorktimeRunning() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        let idleProvider = MutableIdleProvider()
+        idleProvider.value = 0
+        let controller = WorktimeController(
+            dataURL: context.directory.appendingPathComponent("worktime.json"),
+            idleProvider: idleProvider,
+            nowProvider: { context.clock.now },
+            startsMonitoring: false
+        )
+        var settings = controller.settings
+        settings.isEnabled = true
+        controller.updateSettings(settings)
+        try expect(controller.record(on: context.clock.now) != nil, "复盘前没有创建工时记录")
+
+        try expect(context.store.saveReview(note: "任务复盘已完成"), "无法完成复盘")
+        context.clock.advance(seconds: 60 * 60)
+        controller.sampleNow()
+
+        let record = try require(controller.record(on: context.clock.now), "复盘后工时记录消失")
+        try expect(!record.isClosed, "完成复盘错误结束了自动工时")
+        try expect(record.spanSeconds == 60 * 60, "完成复盘后自动工时没有继续更新")
     }
 
     private func addCompletedTask(
