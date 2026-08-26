@@ -3,6 +3,7 @@ import Foundation
 enum AppSection: String, CaseIterable, Identifiable {
     case today = "今天"
     case board = "看板"
+    case worktime = "工时"
     case review = "复盘"
     case templates = "模版"
 
@@ -12,6 +13,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .today: "sun.max"
         case .board: "rectangle.3.group"
+        case .worktime: "briefcase"
         case .review: "square.and.pencil"
         case .templates: "square.grid.2x2"
         }

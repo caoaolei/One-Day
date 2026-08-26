@@ -78,6 +78,8 @@ struct RootView: View {
                 TodayView()
             case .board:
                 BoardView()
+            case .worktime:
+                WorktimeView()
             case .review:
                 ReviewView()
             case .templates:

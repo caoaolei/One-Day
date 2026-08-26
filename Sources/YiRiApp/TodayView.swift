@@ -42,6 +42,8 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 18) {
                 pageHeader
 
+                WorktimeSummaryCard()
+
                 if let activeTask = store.activeTask {
                     FocusTimerCard(task: activeTask)
                 }

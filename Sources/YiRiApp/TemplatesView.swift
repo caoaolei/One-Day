@@ -28,6 +28,7 @@ struct TemplatesView: View {
                 }
 
                 ReminderSettingsView()
+                WorktimeSettingsPanel()
 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
                     ForEach(store.templates) { template in
@@ -47,6 +48,109 @@ struct TemplatesView: View {
             TemplateEditorSheet(template: template)
                 .environmentObject(store)
         }
+    }
+}
+
+struct WorktimeSettingsPanel: View {
+    @EnvironmentObject private var worktime: WorktimeController
+    @State private var isEnabled = false
+    @State private var launchAtLogin = false
+    @State private var pollingMinutes = 1
+    @State private var workdayBoundaryMinutes = 6 * 60
+    @State private var dailyTargetMinutes = 8 * 60
+    @State private var message = ""
+
+    var body: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Label("自动工时", systemImage: "briefcase.badge.clock")
+                        .font(.headline)
+                    Spacer()
+                    Text(isEnabled ? "已开启" : "未开启")
+                        .font(.caption)
+                        .foregroundStyle(isEnabled ? YiRiTheme.accent : Color.secondary)
+                }
+
+                Toggle("自动记录每天最早和最晚键鼠活动", isOn: $isEnabled)
+                    .toggleStyle(.switch)
+
+                HStack(spacing: 18) {
+                    Picker("检测间隔", selection: $pollingMinutes) {
+                        Text("1 分钟").tag(1)
+                        Text("2 分钟").tag(2)
+                        Text("5 分钟").tag(5)
+                        Text("10 分钟").tag(10)
+                    }
+                    Picker("凌晨归属", selection: $workdayBoundaryMinutes) {
+                        Text("04:00 前归前一天").tag(4 * 60)
+                        Text("05:00 前归前一天").tag(5 * 60)
+                        Text("06:00 前归前一天").tag(6 * 60)
+                    }
+                }
+
+                Stepper(
+                    "每日目标 \(dailyTargetText)",
+                    value: $dailyTargetMinutes,
+                    in: 60...(16 * 60),
+                    step: 30
+                )
+
+                HStack {
+                    Toggle("登录 Mac 后自动启动一日", isOn: $launchAtLogin)
+                        .toggleStyle(.checkbox)
+                    Spacer()
+                    Button("保存工时设置") { save() }
+                        .buttonStyle(.borderedProminent)
+                }
+
+                Text(message.isEmpty ? "工时 = 最晚活动时间 − 最早活动时间，午休与中间离开也会计入。" : message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear(perform: load)
+    }
+
+    private func load() {
+        let settings = worktime.settings
+        isEnabled = settings.isEnabled
+        launchAtLogin = settings.launchAtLogin
+        pollingMinutes = settings.pollingMinutes
+        workdayBoundaryMinutes = settings.workdayBoundaryMinutes
+        dailyTargetMinutes = settings.dailyTargetMinutes
+    }
+
+    private func save() {
+        let oldLaunchAtLogin = worktime.settings.launchAtLogin
+        var settings = worktime.settings
+        settings.isEnabled = isEnabled
+        settings.pollingMinutes = max(1, pollingMinutes)
+        settings.workdayBoundaryMinutes = workdayBoundaryMinutes
+        settings.dailyTargetMinutes = dailyTargetMinutes
+        worktime.updateSettings(settings)
+        if launchAtLogin != oldLaunchAtLogin {
+            worktime.setLaunchAtLogin(launchAtLogin)
+        }
+        load()
+        message = worktime.launchAtLoginMessage ?? "工时设置已保存"
+        if isEnabled {
+            Task {
+                let granted = await NotificationManager.shared.requestAuthorization()
+                if granted {
+                    worktime.refreshTargetNotification()
+                    message = "工时设置已保存，预计下班提醒已开启"
+                } else {
+                    message = "设置已保存；请在系统设置中允许通知，以接收下班提醒"
+                }
+            }
+        }
+    }
+
+    private var dailyTargetText: String {
+        let hours = dailyTargetMinutes / 60
+        let minutes = dailyTargetMinutes % 60
+        return minutes == 0 ? "\(hours) 小时" : "\(hours) 小时 \(minutes) 分"
     }
 }
 

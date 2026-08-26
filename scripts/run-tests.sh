@@ -49,6 +49,8 @@ env \
     -swift-version 6 \
     -warnings-as-errors \
     "$PROJECT_ROOT/Sources/YiRiApp/Models.swift" \
+    "$PROJECT_ROOT/Sources/YiRiApp/WorktimeModels.swift" \
+    "$PROJECT_ROOT/Sources/YiRiApp/WorktimeController.swift" \
     "$PROJECT_ROOT/Sources/YiRiApp/HistoryInsights.swift" \
     "$PROJECT_ROOT/Tests/AppStoreChecks/NotificationManagerStub.swift" \
     "$PROJECT_ROOT/Sources/YiRiApp/AppStore.swift" \

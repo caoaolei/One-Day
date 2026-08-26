@@ -7,7 +7,17 @@ protocol TaskNotificationManaging: Sendable {
     func cancelEstimateReminder(taskID: UUID)
 }
 
-final class NotificationManager: TaskNotificationManaging, @unchecked Sendable {
+protocol WorktimeNotificationManaging: Sendable {
+    func scheduleWorktimeTarget(
+        workDate: Date,
+        startAt: Date,
+        expectedEndAt: Date,
+        targetMinutes: Int
+    )
+    func cancelWorktimeTarget(workDate: Date)
+}
+
+final class NotificationManager: TaskNotificationManaging, WorktimeNotificationManaging, @unchecked Sendable {
     static let shared = NotificationManager()
     private let center = UNUserNotificationCenter.current()
 
@@ -18,10 +28,17 @@ final class NotificationManager: TaskNotificationManaging, @unchecked Sendable {
         return settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
     }
 
-    func requestAndSchedule(settings: AppSettings) async -> Bool {
+    func requestAuthorization() async -> Bool {
         do {
-            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-            guard granted else { return false }
+            return try await center.requestAuthorization(options: [.alert, .sound, .badge])
+        } catch {
+            return false
+        }
+    }
+
+    func requestAndSchedule(settings: AppSettings) async -> Bool {
+        guard await requestAuthorization() else { return false }
+        do {
             try await scheduleDailyReminders(settings: settings)
             return true
         } catch {
@@ -98,5 +115,40 @@ final class NotificationManager: TaskNotificationManaging, @unchecked Sendable {
 
     func cancelEstimateReminder(taskID: UUID) {
         center.removePendingNotificationRequests(withIdentifiers: ["estimate-\(taskID.uuidString)"])
+    }
+
+    func scheduleWorktimeTarget(
+        workDate: Date,
+        startAt: Date,
+        expectedEndAt: Date,
+        targetMinutes: Int
+    ) {
+        let identifier = worktimeIdentifier(for: workDate)
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+        guard expectedEndAt > Date() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "今日目标工时已达到"
+        content.body = "从 \(DateFormatter.yiRiTime.string(from: startAt)) 开始，已达到 \(targetMinutes.worktimeTargetText)，辛苦了。"
+        content.sound = .default
+        let components = Calendar.yiRi.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: expectedEndAt
+        )
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        )
+        center.add(request)
+    }
+
+    func cancelWorktimeTarget(workDate: Date) {
+        center.removePendingNotificationRequests(withIdentifiers: [worktimeIdentifier(for: workDate)])
+    }
+
+    private func worktimeIdentifier(for workDate: Date) -> String {
+        let components = Calendar.yiRi.dateComponents([.year, .month, .day], from: workDate)
+        return "worktime-target-\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
     }
 }

@@ -153,6 +153,13 @@ extension DateFormatter {
         return formatter
     }()
 
+    static let yiRiMonth: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy 年 M 月"
+        return formatter
+    }()
+
     static let yiRiSidebarDate: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")

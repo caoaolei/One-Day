@@ -22,12 +22,19 @@ struct AppStoreChecks {
         suite.run("相似任务按名称而非分类归组", suite.checkAutomaticHistoryTopics)
         suite.run("人工事项整理持久化且不学习未来任务", suite.checkManualHistoryTopics)
         suite.run("完成复盘后当天封存且不可覆盖", suite.checkReviewFinalization)
+        suite.run("自动工时按最晚减最早计算", suite.checkWorktimeSpanIncludesBreaks)
+        suite.run("凌晨活动正确归入前一工作日", suite.checkWorktimeDayBoundary)
+        suite.run("结束工时后停止自动更新", suite.checkClosedWorktimeIgnoresActivity)
+        suite.run("工时轮询间隔不低于一分钟", suite.checkWorktimePollingMinimum)
+        suite.run("自动采样与工时记录持久化", suite.checkWorktimeSamplingPersistence)
+        suite.run("目标工时正确计算预计下班与进度", suite.checkWorktimeTargetCalculation)
+        suite.run("预计下班提醒随目标更新并在结束后取消", suite.checkWorktimeTargetNotification)
 
         if suite.failureCount > 0 {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 16 checks")
+        print("PASSED: 23 checks")
     }
 }
 
@@ -138,6 +145,142 @@ private struct CheckSuite {
         context.store.updateTask(tasks[1])
 
         try expect(context.store.autoEstimate(title: "新分析", category: "分析").minutes == 30, "偶数中位数不是 30 分钟")
+    }
+
+    func checkWorktimeSpanIncludesBreaks() throws {
+        var ledger = WorktimeLedger()
+        let settings = WorktimeSettings()
+        let calendar = Calendar.yiRi
+        let day = Date(timeIntervalSince1970: 1_700_000_000).startOfLocalDay
+        let start = try require(calendar.date(bySettingHour: 9, minute: 0, second: 0, of: day), "无法构造上班时间")
+        let end = try require(calendar.date(bySettingHour: 18, minute: 0, second: 0, of: day), "无法构造下班时间")
+
+        try expect(ledger.recordActivity(at: start, settings: settings), "未记录最早活动")
+        try expect(ledger.recordActivity(at: end, settings: settings), "未记录最晚活动")
+        let record = try require(ledger.record(on: day), "找不到工时记录")
+        try expect(record.spanSeconds == 9 * 3600, "工时未按最晚减最早计算")
+    }
+
+    func checkWorktimeDayBoundary() throws {
+        var ledger = WorktimeLedger()
+        var settings = WorktimeSettings()
+        settings.workdayBoundaryMinutes = 6 * 60
+        let calendar = Calendar.yiRi
+        let day = Date(timeIntervalSince1970: 1_700_000_000).startOfLocalDay
+        let earlyMorning = try require(calendar.date(bySettingHour: 2, minute: 30, second: 0, of: day), "无法构造凌晨时间")
+
+        _ = ledger.recordActivity(at: earlyMorning, settings: settings)
+        try expect(ledger.record(on: day.addingDays(-1)) != nil, "凌晨活动未归入前一天")
+        try expect(ledger.record(on: day) == nil, "凌晨活动误归入当天")
+    }
+
+    func checkClosedWorktimeIgnoresActivity() throws {
+        var ledger = WorktimeLedger()
+        let settings = WorktimeSettings()
+        let day = Date(timeIntervalSince1970: 1_700_000_000).startOfLocalDay
+        let start = day.addingTimeInterval(9 * 3600)
+        let end = day.addingTimeInterval(18 * 3600)
+        _ = ledger.recordActivity(at: start, settings: settings)
+        try expect(ledger.closeWorkday(containing: end, at: end, settings: settings), "结束工时失败")
+        try expect(!ledger.recordActivity(at: end.addingTimeInterval(3600), settings: settings), "结束后仍自动更新")
+        let closed = try require(ledger.record(on: day), "找不到已结束记录")
+        try expect(closed.effectiveEndAt == end, "结束时间被后续活动覆盖")
+
+        try expect(ledger.resumeWorkday(containing: end, settings: settings), "恢复工时失败")
+        try expect(ledger.recordActivity(at: end.addingTimeInterval(3600), settings: settings), "恢复后未继续记录")
+    }
+
+    func checkWorktimePollingMinimum() throws {
+        var settings = WorktimeSettings()
+        settings.pollingMinutes = 0
+        try expect(settings.normalized.pollingMinutes == 1, "轮询间隔可以低于一分钟")
+    }
+
+    func checkWorktimeSamplingPersistence() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("YiRiWorktimeChecks-\(UUID().uuidString)", isDirectory: true)
+        let dataURL = directory.appendingPathComponent("worktime.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let calendar = Calendar.yiRi
+        let day = Date(timeIntervalSince1970: 1_700_000_000).startOfLocalDay
+        let clock = TestClock(now: try require(calendar.date(bySettingHour: 9, minute: 0, second: 30, of: day), "无法构造采样时间"))
+        let idleProvider = MutableIdleProvider()
+        let controller = WorktimeController(
+            dataURL: dataURL,
+            idleProvider: idleProvider,
+            nowProvider: { clock.now },
+            startsMonitoring: false
+        )
+        var settings = controller.settings
+        settings.isEnabled = true
+        controller.updateSettings(settings)
+
+        idleProvider.value = 30
+        controller.sampleNow()
+        clock.now = try require(calendar.date(bySettingHour: 18, minute: 0, second: 20, of: day), "无法构造第二次采样时间")
+        idleProvider.value = 20
+        controller.sampleNow()
+
+        let sampled = try require(controller.record(on: clock.now), "自动采样未创建工时记录")
+        try expect(sampled.spanSeconds == 9 * 3600, "自动采样时间计算不正确")
+
+        let reloaded = WorktimeController(
+            dataURL: dataURL,
+            idleProvider: idleProvider,
+            nowProvider: { clock.now },
+            startsMonitoring: false
+        )
+        try expect(reloaded.record(on: clock.now)?.spanSeconds == 9 * 3600, "工时记录没有持久化")
+        try expect(reloaded.settings.isEnabled, "工时设置没有持久化")
+    }
+
+    func checkWorktimeTargetCalculation() throws {
+        let day = Date(timeIntervalSince1970: 1_700_000_000).startOfLocalDay
+        let start = day.addingTimeInterval(9 * 3600)
+        let record = DailyWorktimeRecord(
+            workDate: day,
+            firstActivityAt: start,
+            lastActivityAt: start.addingTimeInterval(4 * 3600)
+        )
+        try expect(record.expectedEndAt(targetMinutes: 8 * 60) == start.addingTimeInterval(8 * 3600), "预计下班时间不正确")
+        try expect(record.goalProgress(targetMinutes: 8 * 60) == 0.5, "目标工时进度不正确")
+    }
+
+    func checkWorktimeTargetNotification() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("YiRiWorktimeTargetChecks-\(UUID().uuidString)", isDirectory: true)
+        let dataURL = directory.appendingPathComponent("worktime.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let day = Date(timeIntervalSince1970: 1_700_000_000).startOfLocalDay
+        let clock = TestClock(now: day.addingTimeInterval(9 * 3600 + 30))
+        let idleProvider = MutableIdleProvider()
+        idleProvider.value = 30
+        let notifications = WorktimeNotificationRecorder()
+        let controller = WorktimeController(
+            dataURL: dataURL,
+            idleProvider: idleProvider,
+            notificationManager: notifications,
+            nowProvider: { clock.now },
+            startsMonitoring: false
+        )
+        var settings = controller.settings
+        settings.isEnabled = true
+        controller.updateSettings(settings)
+
+        let initial = try require(notifications.scheduled.last, "首次活动没有安排预计下班提醒")
+        try expect(initial.startAt == day.addingTimeInterval(9 * 3600), "提醒使用的上班时间不正确")
+        try expect(initial.expectedEndAt == day.addingTimeInterval(17 * 3600), "8 小时目标的预计下班时间不正确")
+
+        settings.dailyTargetMinutes = 7 * 60 + 30
+        controller.updateSettings(settings)
+        try expect(notifications.scheduled.last?.expectedEndAt == day.addingTimeInterval(16 * 3600 + 30 * 60), "修改目标后提醒没有重排")
+
+        try expect(controller.endToday(at: day.addingTimeInterval(18 * 3600)), "无法结束今日工时")
+        try expect(notifications.cancelled.contains(where: { Calendar.yiRi.isDate($0, inSameDayAs: day) }), "结束工时后没有取消提醒")
     }
 
     func checkCompletedGrouping() throws {
@@ -454,6 +597,14 @@ private final class TestClock {
     func advance(seconds: TimeInterval) { now = now.addingTimeInterval(seconds) }
 }
 
+private final class MutableIdleProvider: UserIdleTimeProviding {
+    var value: TimeInterval?
+
+    func idleSeconds() -> TimeInterval? {
+        value
+    }
+}
+
 private final class NotificationRecorder: TaskNotificationManaging, @unchecked Sendable {
     struct Scheduled { let seconds: Int }
     private(set) var scheduled: [Scheduled] = []
@@ -463,6 +614,36 @@ private final class NotificationRecorder: TaskNotificationManaging, @unchecked S
         scheduled.append(Scheduled(seconds: seconds))
     }
     func cancelEstimateReminder(taskID: UUID) {}
+}
+
+private final class WorktimeNotificationRecorder: WorktimeNotificationManaging, @unchecked Sendable {
+    struct Scheduled {
+        let workDate: Date
+        let startAt: Date
+        let expectedEndAt: Date
+        let targetMinutes: Int
+    }
+
+    private(set) var scheduled: [Scheduled] = []
+    private(set) var cancelled: [Date] = []
+
+    func scheduleWorktimeTarget(
+        workDate: Date,
+        startAt: Date,
+        expectedEndAt: Date,
+        targetMinutes: Int
+    ) {
+        scheduled.append(Scheduled(
+            workDate: workDate,
+            startAt: startAt,
+            expectedEndAt: expectedEndAt,
+            targetMinutes: targetMinutes
+        ))
+    }
+
+    func cancelWorktimeTarget(workDate: Date) {
+        cancelled.append(workDate)
+    }
 }
 
 private extension JSONDecoder {
