@@ -102,6 +102,32 @@ final class AppStore: ObservableObject {
             }
     }
 
+    func boardBacklogTasks(referenceDate: Date = Date()) -> [TaskItem] {
+        let today = referenceDate.startOfLocalDay
+        return tasks
+            .filter { item in
+                guard !item.isCompleted else { return false }
+                guard let scheduledDate = item.scheduledDate else { return true }
+                return !Calendar.yiRi.isDate(scheduledDate, inSameDayAs: today)
+            }
+            .sorted { left, right in
+                let leftRank = backlogRank(for: left, today: today)
+                let rightRank = backlogRank(for: right, today: today)
+                if leftRank != rightRank { return leftRank < rightRank }
+
+                switch (left.scheduledDate, right.scheduledDate) {
+                case let (leftDate?, rightDate?):
+                    return leftRank == 0 ? leftDate > rightDate : leftDate < rightDate
+                case (nil, nil):
+                    return left.createdAt < right.createdAt
+                case (nil, _):
+                    return true
+                case (_, nil):
+                    return false
+                }
+            }
+    }
+
     func completedToday(referenceDate: Date = Date()) -> [TaskItem] {
         tasks
             .filter { item in
@@ -266,15 +292,15 @@ final class AppStore: ObservableObject {
         let today = now.startOfLocalDay
 
         switch lane {
-        case .yesterday:
-            let isAlreadyOverdue = !tasks[index].isCompleted
-                && (tasks[index].scheduledDate?.startOfLocalDay ?? .distantFuture) < today
-            guard !isAlreadyOverdue else { return false }
+        case .backlog:
+            let isAlreadyInBacklog = !tasks[index].isCompleted
+                && tasks[index].scheduledDate.map {
+                    !Calendar.yiRi.isDate($0, inSameDayAs: today)
+                } != false
+            guard !isAlreadyInBacklog else { return false }
             tasks[index].isCompleted = false
             tasks[index].completedAt = nil
-            if (tasks[index].scheduledDate?.startOfLocalDay ?? .distantFuture) >= today {
-                tasks[index].scheduledDate = today.addingDays(-1)
-            }
+            tasks[index].scheduledDate = nil
 
         case .todayPending:
             let isAlreadyToday = !tasks[index].isCompleted
@@ -298,6 +324,11 @@ final class AppStore: ObservableObject {
 
         save()
         return true
+    }
+
+    private func backlogRank(for task: TaskItem, today: Date) -> Int {
+        guard let scheduledDate = task.scheduledDate else { return 1 }
+        return scheduledDate.startOfLocalDay < today ? 0 : 2
     }
 
     func meetings(on date: Date) -> [MeetingItem] {

@@ -7,8 +7,8 @@ struct BoardView: View {
     @State private var editingTask: TaskItem?
     @State private var highlightedCompletedID: UUID?
 
-    private var overdue: [TaskItem] {
-        store.overdueTasks()
+    private var backlog: [TaskItem] {
+        store.boardBacklogTasks()
     }
 
     private var todayPending: [TaskItem] {
@@ -23,10 +23,6 @@ struct BoardView: View {
         store.completedTasks().count
     }
 
-    private var unplannedOrUpcoming: [TaskItem] {
-        store.unplannedOrUpcomingTasks()
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -34,10 +30,10 @@ struct BoardView: View {
 
                 HStack(alignment: .top, spacing: 14) {
                     BoardColumn(
-                        title: "昨天",
-                        subtitle: "含更早未完成",
-                        tasks: overdue,
-                        lane: .yesterday,
+                        title: "待安排",
+                        subtitle: "逾期、未安排与未来",
+                        tasks: backlog,
+                        lane: .backlog,
                         accent: false,
                         onEdit: edit,
                         onComplete: complete,
@@ -61,37 +57,6 @@ struct BoardView: View {
                         onDelete: delete,
                         onMove: move
                     )
-                }
-
-                Panel {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(
-                            title: "待安排与未来",
-                            subtitle: "这些任务也可以直接拖到上方三列"
-                        )
-                        Divider()
-                        if unplannedOrUpcoming.isEmpty {
-                            Text("暂无任务")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, minHeight: 56)
-                        } else {
-                            LazyVGrid(
-                                columns: [GridItem(.adaptive(minimum: 240), spacing: 12)],
-                                alignment: .leading,
-                                spacing: 12
-                            ) {
-                                ForEach(unplannedOrUpcoming) { task in
-                                    BoardTaskCard(
-                                        task: task,
-                                        accent: false,
-                                        onEdit: { edit(task) },
-                                        onComplete: { complete(task) }
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
             .yiRiPage()
@@ -1134,7 +1099,7 @@ private struct BoardTaskCard: View {
             Button("删除任务", role: .destructive) { store.deleteTask(task.id) }
         }
         .draggable(task.id.uuidString)
-        .accessibilityHint("可拖动到昨天、今天待完成或今天已完成")
+        .accessibilityHint("可拖动到待安排、今天待完成或今天已完成")
     }
 
     private var taskMenu: some View {

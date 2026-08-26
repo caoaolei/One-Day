@@ -133,17 +133,24 @@ struct WorktimeSummaryCard: View {
                                 label: "上班时间"
                             )
                             WorktimeMetric(
-                                value: DateFormatter.yiRiTime.string(from: record.effectiveEndAt),
-                                label: record.isClosed ? "下班时间" : "最新活动"
-                            )
-                            WorktimeMetric(
                                 value: record.spanSeconds.worktimeDurationText,
                                 label: "今日工时"
                             )
                             WorktimeMetric(
-                                value: DateFormatter.yiRiTime.string(from: expectedEnd),
-                                label: "预计下班"
+                                value: DateFormatter.yiRiTime.string(
+                                    from: record.isClosed ? record.effectiveEndAt : expectedEnd
+                                ),
+                                label: record.isClosed ? "下班时间" : "预计下班"
                             )
+                        }
+
+                        if !record.isClosed {
+                            Label(
+                                "最新活动 \(DateFormatter.yiRiTime.string(from: record.effectiveEndAt))",
+                                systemImage: "clock.arrow.circlepath"
+                            )
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                         }
 
                         WorktimeGoalProgressBar(

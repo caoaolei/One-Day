@@ -95,10 +95,9 @@ private struct CheckSuite {
         context.store.addTask(title: "逾期", category: "测试", estimatedMinutes: 10, date: context.clock.now.addingDays(-4))
         context.store.addTask(title: "今天", category: "测试", estimatedMinutes: 10, date: context.clock.now)
 
-        let overdueIDs = Set(context.store.overdueTasks(referenceDate: context.clock.now).map(\.id))
-        let otherIDs = Set(context.store.unplannedOrUpcomingTasks(referenceDate: context.clock.now).map(\.id))
+        let backlogIDs = Set(context.store.boardBacklogTasks(referenceDate: context.clock.now).map(\.id))
         let todayIDs = Set(context.store.tasks(on: context.clock.now).filter { !$0.isCompleted }.map(\.id))
-        let visibleIDs = overdueIDs.union(otherIDs).union(todayIDs)
+        let visibleIDs = backlogIDs.union(todayIDs)
         try expect(visibleIDs == Set(context.store.tasks.map(\.id)), "仍有未完成任务没有看板入口")
     }
 
@@ -344,15 +343,18 @@ private struct CheckSuite {
         context.store.addTask(title: "拖放任务", category: "测试", estimatedMinutes: 10, date: context.clock.now.addingDays(3))
         let task = try require(context.store.tasks.first, "找不到拖放任务")
 
-        try expect(context.store.moveTask(task.id, to: .yesterday, referenceDate: context.clock.now), "无法拖到昨天")
-        var moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到昨天后任务消失")
-        try expect(!moved.isCompleted, "拖到昨天后仍为已完成")
-        try expect(Calendar.yiRi.isDate(moved.scheduledDate ?? .distantPast, inSameDayAs: context.clock.now.addingDays(-1)), "拖到昨天后日期不正确")
+        try expect(!context.store.moveTask(task.id, to: .backlog, referenceDate: context.clock.now), "未来任务已在待安排列时不应重复修改")
 
         try expect(context.store.moveTask(task.id, to: .todayPending, referenceDate: context.clock.now), "无法拖到今天待完成")
-        moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到今天后任务消失")
+        var moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到今天后任务消失")
         try expect(!moved.isCompleted, "拖到今天待完成后仍为已完成")
         try expect(Calendar.yiRi.isDate(moved.scheduledDate ?? .distantPast, inSameDayAs: context.clock.now), "拖到今天待完成后日期不正确")
+
+        try expect(context.store.moveTask(task.id, to: .backlog, referenceDate: context.clock.now), "无法拖到待安排")
+        moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到待安排后任务消失")
+        try expect(!moved.isCompleted && moved.scheduledDate == nil, "拖到待安排后没有清除安排日期")
+
+        try expect(context.store.moveTask(task.id, to: .todayPending, referenceDate: context.clock.now), "无法从待安排拖回今天")
 
         try expect(context.store.moveTask(task.id, to: .todayCompleted, referenceDate: context.clock.now), "无法拖到今天已完成")
         moved = try require(context.store.tasks.first(where: { $0.id == task.id }), "拖到已完成后任务消失")

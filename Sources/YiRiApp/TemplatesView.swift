@@ -89,12 +89,47 @@ struct WorktimeSettingsPanel: View {
                     }
                 }
 
-                Stepper(
-                    "每日目标 \(dailyTargetText)",
-                    value: $dailyTargetMinutes,
-                    in: 60...(16 * 60),
-                    step: 30
-                )
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("每日目标工时")
+                            .font(.subheadline.weight(.medium))
+                        Text("用于计算预计下班时间")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Button {
+                            dailyTargetMinutes = max(60, dailyTargetMinutes - 30)
+                        } label: {
+                            Image(systemName: "minus")
+                                .frame(width: 22, height: 22)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(dailyTargetMinutes <= 60)
+
+                        Text(dailyTargetText)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .frame(width: 92, alignment: .center)
+
+                        Button {
+                            dailyTargetMinutes = min(16 * 60, dailyTargetMinutes + 30)
+                        } label: {
+                            Image(systemName: "plus")
+                                .frame(width: 22, height: 22)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(dailyTargetMinutes >= 16 * 60)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(YiRiTheme.secondaryPanel)
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(YiRiTheme.border.opacity(0.7), lineWidth: 1)
+                    }
+                }
 
                 HStack {
                     Toggle("登录 Mac 后自动启动一日", isOn: $launchAtLogin)

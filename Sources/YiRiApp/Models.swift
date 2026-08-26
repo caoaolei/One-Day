@@ -29,7 +29,7 @@ enum CarryOverPolicy: String, Codable, CaseIterable, Identifiable {
 }
 
 enum BoardLane {
-    case yesterday
+    case backlog
     case todayPending
     case todayCompleted
 }
