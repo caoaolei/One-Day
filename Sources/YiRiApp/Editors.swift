@@ -73,6 +73,7 @@ struct TaskEditorSheet: View {
     @State private var workdayCount = 5
     @State private var skipDuplicates = true
     @State private var suggestionReason = ""
+    @FocusState private var focusedField: TaskEditorField?
 
     private let categories = ["深度工作", "日常", "写作", "规划", "复盘", "自定义"]
 
@@ -107,7 +108,25 @@ struct TaskEditorSheet: View {
             sheetHeader(title: task == nil ? "添加任务" : "编辑任务", subtitle: "自动估时会优先参考你过去的实际用时")
 
             Form {
-                TextField("任务名称", text: $title)
+                LabeledContent("任务名称") {
+                    TextField("例如：整理项目方案", text: $title)
+                        .textFieldStyle(.plain)
+                        .focused($focusedField, equals: .title)
+                        .font(.body)
+                        .tint(YiRiTheme.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(YiRiTheme.inputBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(
+                                    focusedField == .title ? YiRiTheme.accent : YiRiTheme.border,
+                                    lineWidth: focusedField == .title ? 1.5 : 1
+                                )
+                        }
+                        .frame(minWidth: 340)
+                }
                 Picker("分类", selection: $category) {
                     ForEach(categories, id: \.self) { Text($0).tag($0) }
                 }
@@ -198,7 +217,16 @@ struct TaskEditorSheet: View {
         }
         .padding(24)
         .frame(width: 580, height: task == nil ? 520 : 440)
+        .onAppear {
+            DispatchQueue.main.async {
+                focusedField = .title
+            }
+        }
     }
+}
+
+private enum TaskEditorField: Hashable {
+    case title
 }
 
 private enum TaskScheduleMode: String, CaseIterable, Identifiable {

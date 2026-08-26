@@ -55,9 +55,7 @@ struct BoardView: View {
                     )
                     TodayCompletedColumn(
                         tasks: todayCompleted,
-                        historyCount: completedHistoryCount,
                         highlightedTaskID: highlightedCompletedID,
-                        onShowHistory: { showingCompletedHistory = true },
                         onEdit: edit,
                         onRestore: restore,
                         onDelete: delete,
@@ -126,12 +124,32 @@ struct BoardView: View {
                     .padding(.top, 2)
             }
             Spacer()
-            Button {
-                showingTaskEditor = true
-            } label: {
-                Label("新建任务", systemImage: "plus")
+            HStack(spacing: 10) {
+                Button {
+                    showingCompletedHistory = true
+                } label: {
+                    HStack(spacing: 7) {
+                        Label("查看全部成果", systemImage: "clock.arrow.circlepath")
+                        Text("\(completedHistoryCount)")
+                            .font(.caption2.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(YiRiTheme.secondaryPanel)
+                            .clipShape(Capsule())
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(completedHistoryCount == 0)
+                .help(completedHistoryCount == 0 ? "还没有完成的任务" : "查看包含今天在内的全部完成记录")
+
+                Button {
+                    showingTaskEditor = true
+                } label: {
+                    Label("新建任务", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -248,9 +266,7 @@ private struct BoardColumn: View {
 
 private struct TodayCompletedColumn: View {
     let tasks: [TaskItem]
-    let historyCount: Int
     let highlightedTaskID: UUID?
-    let onShowHistory: () -> Void
     let onEdit: (TaskItem) -> Void
     let onRestore: (TaskItem) -> Void
     let onDelete: (TaskItem) -> Void
@@ -283,8 +299,6 @@ private struct TodayCompletedColumn: View {
             .padding(.horizontal, 3)
 
             completionSummary
-
-            historyButton
 
             if tasks.isEmpty {
                 DropEmptyState(
@@ -378,37 +392,6 @@ private struct TodayCompletedColumn: View {
         }
     }
 
-    private var historyButton: some View {
-        Button {
-            onShowHistory()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .foregroundStyle(YiRiTheme.accent)
-                Text("查看全部成果")
-                    .font(.caption.weight(.medium))
-                Spacer()
-                Text("\(historyCount) 项")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 9)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(YiRiTheme.panel.opacity(historyCount > 0 ? 0.82 : 0.45))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(YiRiTheme.completionBorder.opacity(0.55), lineWidth: 1)
-        }
-        .disabled(historyCount == 0)
-        .help(historyCount == 0 ? "还没有完成的任务" : "查看包含今天在内的全部完成记录")
-    }
 }
 
 private struct DropEmptyState: View {
