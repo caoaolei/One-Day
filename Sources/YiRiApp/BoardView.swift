@@ -24,49 +24,59 @@ struct BoardView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                header
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
 
-                HStack(alignment: .top, spacing: 14) {
-                    BoardColumn(
-                        title: "待安排",
-                        subtitle: "逾期、未安排与未来",
-                        tasks: backlog,
-                        lane: .backlog,
-                        accent: false,
-                        onEdit: edit,
-                        onComplete: complete,
-                        onMove: move
-                    )
-                    BoardColumn(
-                        title: "今天待完成",
-                        subtitle: "安排在今天",
-                        tasks: todayPending,
-                        lane: .todayPending,
-                        accent: true,
-                        onEdit: edit,
-                        onComplete: complete,
-                        onMove: move
-                    )
-                    TodayCompletedColumn(
-                        tasks: todayCompleted,
-                        highlightedTaskID: highlightedCompletedID,
-                        onEdit: edit,
-                        onRestore: restore,
-                        onDelete: delete,
-                        onMove: move
-                    )
+                    HStack(alignment: .top, spacing: 14) {
+                        BoardColumn(
+                            title: "待安排",
+                            subtitle: "逾期、未安排与未来",
+                            tasks: backlog,
+                            lane: .backlog,
+                            accent: false,
+                            onEdit: edit,
+                            onComplete: complete,
+                            onMove: move
+                        )
+                        BoardColumn(
+                            title: "今天待完成",
+                            subtitle: "安排在今天",
+                            tasks: todayPending,
+                            lane: .todayPending,
+                            accent: true,
+                            onEdit: edit,
+                            onComplete: complete,
+                            onMove: move
+                        )
+                        TodayCompletedColumn(
+                            tasks: todayCompleted,
+                            highlightedTaskID: highlightedCompletedID,
+                            onEdit: edit,
+                            onRestore: restore,
+                            onDelete: delete,
+                            onMove: move
+                        )
+                    }
                 }
+                .yiRiPage()
             }
-            .yiRiPage()
+            .allowsHitTesting(!showingCompletedHistory)
+
+            if showingCompletedHistory {
+                CompletedHistorySheet {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        showingCompletedHistory = false
+                    }
+                }
+                .environmentObject(store)
+                .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                .zIndex(10)
+            }
         }
         .sheet(isPresented: $showingTaskEditor) {
             TaskEditorSheet(defaultDate: Date())
-                .environmentObject(store)
-        }
-        .sheet(isPresented: $showingCompletedHistory) {
-            CompletedHistorySheet()
                 .environmentObject(store)
         }
         .sheet(item: $editingTask) { task in
@@ -380,7 +390,7 @@ private struct DropEmptyState: View {
 
 private struct CompletedHistorySheet: View {
     @EnvironmentObject private var store: AppStore
-    @Environment(\.dismiss) private var dismiss
+    let onClose: () -> Void
     @State private var mode: HistoryArchiveMode = .date
     @State private var editingTask: TaskItem?
     @State private var expandedTopicIDs: Set<String> = []
@@ -403,16 +413,6 @@ private struct CompletedHistorySheet: View {
         [GridItem(.adaptive(minimum: mode == .date ? 420 : 440, maximum: 640), spacing: 18, alignment: .top)]
     }
 
-    private var archiveSize: CGSize {
-        guard let visibleFrame = NSScreen.main?.visibleFrame else {
-            return CGSize(width: 1180, height: 820)
-        }
-        return CGSize(
-            width: max(900, visibleFrame.width - 72),
-            height: max(640, visibleFrame.height - 72)
-        )
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
@@ -425,7 +425,7 @@ private struct CompletedHistorySheet: View {
                 }
                 Spacer()
                 Button {
-                    dismiss()
+                    onClose()
                 } label: {
                     Label("返回看板", systemImage: "xmark")
                 }
@@ -492,7 +492,7 @@ private struct CompletedHistorySheet: View {
                 }
             }
         }
-        .frame(width: archiveSize.width, height: archiveSize.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(YiRiTheme.page)
         .sheet(item: $editingTask) { task in
             TaskEditorSheet(defaultDate: task.scheduledDate ?? Date(), task: task)

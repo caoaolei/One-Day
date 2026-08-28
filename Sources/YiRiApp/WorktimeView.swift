@@ -335,6 +335,10 @@ private struct WorktimeCalendarBoard: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    Label("对勾表示达到每日目标", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(YiRiTheme.accent)
+                        .padding(.leading, 8)
                     Spacer()
                     Button { moveMonth(-1) } label: {
                         Image(systemName: "chevron.left")
@@ -428,6 +432,7 @@ private struct WorktimeCalendarDayCell: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(YiRiTheme.accent)
+                        .help("当日工时已达到每日目标")
                 }
             }
 
