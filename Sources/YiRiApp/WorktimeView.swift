@@ -1,8 +1,14 @@
 import SwiftUI
 
+private struct WorktimeEditRequest: Identifiable {
+    let id = UUID()
+    let workDate: Date
+    let record: DailyWorktimeRecord?
+}
+
 struct WorktimeView: View {
     @EnvironmentObject private var worktime: WorktimeController
-    @State private var editingRecord: DailyWorktimeRecord?
+    @State private var editingRequest: WorktimeEditRequest?
     @State private var displayedMonth = Date()
 
     private var previousRecords: [DailyWorktimeRecord] {
@@ -19,8 +25,8 @@ struct WorktimeView: View {
                     displayedMonth: $displayedMonth,
                     records: worktime.records,
                     targetMinutes: worktime.settings.dailyTargetMinutes
-                ) { record in
-                    editingRecord = record
+                ) { day, record in
+                    editingRequest = WorktimeEditRequest(workDate: day, record: record)
                 }
 
                 Panel {
@@ -44,7 +50,10 @@ struct WorktimeView: View {
                                         record: record,
                                         targetMinutes: worktime.settings.dailyTargetMinutes
                                     ) {
-                                        editingRecord = record
+                                        editingRequest = WorktimeEditRequest(
+                                            workDate: record.workDate,
+                                            record: record
+                                        )
                                     }
                                 }
                             }
@@ -54,8 +63,11 @@ struct WorktimeView: View {
             }
             .yiRiPage()
         }
-        .sheet(item: $editingRecord) { record in
-            WorktimeRecordEditorSheet(record: record)
+        .sheet(item: $editingRequest) { request in
+            WorktimeRecordEditorSheet(
+                workDate: request.workDate,
+                record: request.record
+            )
                 .environmentObject(worktime)
         }
         .alert(
@@ -85,7 +97,7 @@ struct WorktimeView: View {
             Spacer()
             if let today = worktime.record(on: Date()) {
                 Button {
-                    editingRecord = today
+                    editingRequest = WorktimeEditRequest(workDate: today.workDate, record: today)
                 } label: {
                     Label("修正今天", systemImage: "pencil")
                 }
@@ -293,7 +305,7 @@ private struct WorktimeCalendarBoard: View {
     @Binding var displayedMonth: Date
     let records: [DailyWorktimeRecord]
     let targetMinutes: Int
-    let onSelect: (DailyWorktimeRecord) -> Void
+    let onEdit: (Date, DailyWorktimeRecord?) -> Void
 
     private let calendar = Calendar.yiRi
     private let weekdayTitles = ["一", "二", "三", "四", "五", "六", "日"]
@@ -331,7 +343,7 @@ private struct WorktimeCalendarBoard: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("月度工时")
                             .font(.headline)
-                        Text("每天的上班、下班时间与目标进度")
+                        Text("每天的上班、下班时间与目标进度 · 右键日期可补录")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -375,7 +387,7 @@ private struct WorktimeCalendarBoard: View {
                         if let day {
                             let record = record(for: day)
                             Button {
-                                if let record { onSelect(record) }
+                                if record != nil { onEdit(day, record) }
                             } label: {
                                 WorktimeCalendarDayCell(
                                     day: day,
@@ -384,6 +396,12 @@ private struct WorktimeCalendarBoard: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(record == nil ? "补录上下班时间" : "修正上下班时间") {
+                                    onEdit(day, record)
+                                }
+                            }
+                            .help(record == nil ? "右键补录当天上下班时间" : "点击或右键修正当天工时")
                         } else {
                             Color.clear.frame(minHeight: 112)
                         }
@@ -566,29 +584,34 @@ private struct WorktimeHistoryRow: View {
 private struct WorktimeRecordEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var worktime: WorktimeController
-    let record: DailyWorktimeRecord
+    let workDate: Date
+    let record: DailyWorktimeRecord?
     @State private var startAt: Date
     @State private var endAt: Date
 
-    init(record: DailyWorktimeRecord) {
+    init(workDate: Date, record: DailyWorktimeRecord?) {
+        let calendar = Calendar.yiRi
+        let defaultStart = calendar.date(bySettingHour: 9, minute: 30, second: 0, of: workDate) ?? workDate
+        let defaultEnd = calendar.date(bySettingHour: 18, minute: 30, second: 0, of: workDate) ?? workDate
+        self.workDate = workDate.startOfLocalDay
         self.record = record
-        _startAt = State(initialValue: record.effectiveStartAt)
-        _endAt = State(initialValue: record.effectiveEndAt)
+        _startAt = State(initialValue: record?.effectiveStartAt ?? defaultStart)
+        _endAt = State(initialValue: record?.effectiveEndAt ?? defaultEnd)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("修正工时")
+                Text(record == nil ? "补录工时" : "修正工时")
                     .font(.title2.weight(.semibold))
-                Text(DateFormatter.yiRiDay.string(from: record.workDate))
+                Text(DateFormatter.yiRiDay.string(from: workDate))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Form {
-                DatePicker("开始时间", selection: $startAt, displayedComponents: [.date, .hourAndMinute])
-                DatePicker("结束时间", selection: $endAt, displayedComponents: [.date, .hourAndMinute])
+                DatePicker("上班时间", selection: $startAt, displayedComponents: .hourAndMinute)
+                DatePicker("下班时间", selection: $endAt, displayedComponents: .hourAndMinute)
                 LabeledContent("修正后工时") {
                     Text(max(0, Int(endAt.timeIntervalSince(startAt))).worktimeDurationText)
                         .monospacedDigit()
@@ -597,13 +620,23 @@ private struct WorktimeRecordEditorSheet: View {
             .formStyle(.grouped)
 
             HStack {
-                Text("保存后会以手动时间为准，并结束该日自动更新。")
+                Text(record == nil ? "补录后会作为该日正式工时记录。" : "保存后会以手动时间为准，并结束该日自动更新。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("取消") { dismiss() }
-                Button("保存修正") {
-                    if worktime.correctRecord(record.id, startAt: startAt, endAt: endAt) {
+                Button(record == nil ? "保存补录" : "保存修正") {
+                    let saved: Bool
+                    if let record {
+                        saved = worktime.correctRecord(record.id, startAt: startAt, endAt: endAt)
+                    } else {
+                        saved = worktime.setManualRecord(
+                            on: workDate,
+                            startAt: startAt,
+                            endAt: endAt
+                        )
+                    }
+                    if saved {
                         dismiss()
                     }
                 }

@@ -7,8 +7,25 @@ struct TodayView: View {
     @State private var showingBatchAdd = false
     @State private var editingTask: TaskItem?
     @State private var editingMeeting: MeetingItem?
+    @State private var subtaskParent: TaskItem?
 
-    private var todayTasks: [TaskItem] { store.tasks(on: Date()) }
+    private var todayTasks: [TaskItem] {
+        let tasks = store.tasks(on: Date())
+        let visibleIDs = Set(tasks.map(\.id))
+        var ordered: [TaskItem] = []
+        var insertedIDs: Set<UUID> = []
+
+        for task in tasks where task.parentTaskID.map({ !visibleIDs.contains($0) }) ?? true {
+            ordered.append(task)
+            insertedIDs.insert(task.id)
+            for subtask in tasks where subtask.parentTaskID == task.id {
+                ordered.append(subtask)
+                insertedIDs.insert(subtask.id)
+            }
+        }
+        ordered.append(contentsOf: tasks.filter { !insertedIDs.contains($0.id) })
+        return ordered
+    }
     private var todayMeetings: [MeetingItem] { store.meetings(on: Date()) }
 
     var body: some View {
@@ -34,6 +51,13 @@ struct TodayView: View {
         .sheet(isPresented: $showingBatchAdd) {
             BatchAddSheet()
                 .environmentObject(store)
+        }
+        .sheet(item: $subtaskParent) { parent in
+            TaskEditorSheet(
+                defaultDate: parent.scheduledDate ?? Date(),
+                parentTask: parent
+            )
+            .environmentObject(store)
         }
     }
 
@@ -120,6 +144,8 @@ struct TodayView: View {
                             TodayTaskRow(task: task) {
                                 editingTask = task
                                 showingTaskEditor = true
+                            } onAddSubtask: {
+                                subtaskParent = task
                             }
                             if task.id != todayTasks.last?.id { Divider() }
                         }
@@ -249,6 +275,7 @@ private struct TodayTaskRow: View {
     @EnvironmentObject private var store: AppStore
     let task: TaskItem
     let onEdit: () -> Void
+    let onAddSubtask: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -260,9 +287,16 @@ private struct TodayTaskRow: View {
             .labelsHidden()
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(task.title)
-                    .strikethrough(task.isCompleted)
-                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                HStack(spacing: 6) {
+                    if task.parentTaskID != nil {
+                        Image(systemName: "arrow.turn.down.right")
+                            .font(.caption2)
+                            .foregroundStyle(YiRiTheme.accent)
+                    }
+                    Text(task.title)
+                        .strikethrough(task.isCompleted)
+                        .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                }
                 Text("\(task.estimatedMinutes.durationText) · \(task.category)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -279,6 +313,10 @@ private struct TodayTaskRow: View {
                 .buttonStyle(.bordered)
             }
             Menu {
+                if task.parentTaskID == nil {
+                    Button("添加子任务") { onAddSubtask() }
+                    Divider()
+                }
                 Button("编辑") { onEdit() }
                 Divider()
                 Button("移到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }
@@ -297,6 +335,9 @@ private struct TodayTaskRow: View {
         .padding(.vertical, 10)
         .contentShape(Rectangle())
         .contextMenu {
+            if task.parentTaskID == nil {
+                Button("添加子任务") { onAddSubtask() }
+            }
             Button("编辑任务") { onEdit() }
             if !task.isCompleted {
                 Button("移到明天") { store.moveTask(task.id, to: Date().addingDays(1)) }

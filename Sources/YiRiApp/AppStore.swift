@@ -231,6 +231,7 @@ final class AppStore: ObservableObject {
         estimatedMinutes: Int,
         workdayCount: Int,
         skipDuplicates: Bool,
+        subtasks: [TaskSubtaskDraft] = [],
         referenceDate: Date? = nil
     ) -> FutureTaskCreationResult {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -244,12 +245,14 @@ final class AppStore: ObservableObject {
             referenceDate: referenceDate
         )
         for date in plan.creatableDates {
-            tasks.append(TaskItem(
+            let parent = TaskItem(
                 title: trimmedTitle,
                 category: category,
                 estimatedMinutes: max(5, estimatedMinutes),
                 scheduledDate: date.startOfLocalDay
-            ))
+            )
+            tasks.append(parent)
+            appendSubtasks(subtasks, to: parent, date: date)
         }
         save()
         return FutureTaskCreationResult(
@@ -345,15 +348,83 @@ final class AppStore: ObservableObject {
         review(on: date) != nil
     }
 
-    func addTask(title: String, category: String, estimatedMinutes: Int, date: Date?) {
+    @discardableResult
+    func addTask(
+        title: String,
+        category: String,
+        estimatedMinutes: Int,
+        date: Date?,
+        parentTaskID: UUID? = nil
+    ) -> TaskItem {
         let task = TaskItem(
+            title: title,
+            category: category,
+            estimatedMinutes: max(5, estimatedMinutes),
+            scheduledDate: date?.startOfLocalDay,
+            parentTaskID: parentTaskID
+        )
+        tasks.append(task)
+        save()
+        return task
+    }
+
+    @discardableResult
+    func addTaskWithSubtasks(
+        title: String,
+        category: String,
+        estimatedMinutes: Int,
+        date: Date?,
+        subtasks: [TaskSubtaskDraft]
+    ) -> TaskItem {
+        let parent = TaskItem(
             title: title,
             category: category,
             estimatedMinutes: max(5, estimatedMinutes),
             scheduledDate: date?.startOfLocalDay
         )
-        tasks.append(task)
+        tasks.append(parent)
+        appendSubtasks(subtasks, to: parent, date: date)
         save()
+        return parent
+    }
+
+    @discardableResult
+    func addSubtask(
+        to parent: TaskItem,
+        title: String,
+        estimatedMinutes: Int,
+        date: Date? = nil
+    ) -> TaskItem {
+        addTask(
+            title: title,
+            category: parent.category,
+            estimatedMinutes: estimatedMinutes,
+            date: date ?? parent.scheduledDate,
+            parentTaskID: parent.id
+        )
+    }
+
+    func parentTask(for task: TaskItem) -> TaskItem? {
+        guard let parentTaskID = task.parentTaskID else { return nil }
+        return tasks.first(where: { $0.id == parentTaskID })
+    }
+
+    func subtasks(of task: TaskItem) -> [TaskItem] {
+        tasks.filter { $0.parentTaskID == task.id }
+    }
+
+    private func appendSubtasks(_ drafts: [TaskSubtaskDraft], to parent: TaskItem, date: Date?) {
+        for draft in drafts {
+            let trimmedTitle = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedTitle.isEmpty else { continue }
+            tasks.append(TaskItem(
+                title: trimmedTitle,
+                category: parent.category,
+                estimatedMinutes: max(5, draft.estimatedMinutes),
+                scheduledDate: date?.startOfLocalDay,
+                parentTaskID: parent.id
+            ))
+        }
     }
 
     private static func nextWorkdays(after referenceDate: Date, count: Int) -> [Date] {
@@ -417,6 +488,9 @@ final class AppStore: ObservableObject {
     }
 
     func deleteTask(_ id: UUID) {
+        for index in tasks.indices where tasks[index].parentTaskID == id {
+            tasks[index].parentTaskID = nil
+        }
         tasks.removeAll { $0.id == id }
         if activeTaskID == id {
             notificationManager.cancelEstimateReminder(taskID: id)

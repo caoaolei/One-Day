@@ -185,6 +185,39 @@ struct WorktimeLedger {
         return true
     }
 
+    @discardableResult
+    mutating func setManualRecord(
+        on workDate: Date,
+        startAt: Date,
+        endAt: Date,
+        updatedAt: Date = Date()
+    ) -> Bool {
+        guard endAt >= startAt else { return false }
+        let normalizedWorkDate = workDate.startOfLocalDay
+
+        if let index = records.firstIndex(where: {
+            Calendar.yiRi.isDate($0.workDate, inSameDayAs: normalizedWorkDate)
+        }) {
+            records[index].manualStartAt = startAt
+            records[index].manualEndAt = endAt
+            records[index].isClosed = true
+            records[index].updatedAt = updatedAt
+            return true
+        }
+
+        records.append(DailyWorktimeRecord(
+            workDate: normalizedWorkDate,
+            firstActivityAt: startAt,
+            lastActivityAt: endAt,
+            manualStartAt: startAt,
+            manualEndAt: endAt,
+            isClosed: true,
+            createdAt: updatedAt,
+            updatedAt: updatedAt
+        ))
+        return true
+    }
+
     static func workDate(for timestamp: Date, boundaryMinutes: Int) -> Date {
         let boundary = min(12 * 60, max(0, boundaryMinutes))
         let components = Calendar.yiRi.dateComponents([.hour, .minute], from: timestamp)

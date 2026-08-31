@@ -190,6 +190,20 @@ final class WorktimeController: ObservableObject {
         return true
     }
 
+    @discardableResult
+    func setManualRecord(on workDate: Date, startAt: Date, endAt: Date) -> Bool {
+        let now = nowProvider()
+        guard ledger.setManualRecord(
+            on: workDate,
+            startAt: startAt,
+            endAt: endAt,
+            updatedAt: now
+        ) else { return false }
+        publishAndSave()
+        notificationManager.cancelWorktimeTarget(workDate: workDate.startOfLocalDay)
+        return true
+    }
+
     func refreshTargetNotification(at date: Date? = nil) {
         let now = date ?? nowProvider()
         guard settings.isEnabled, let record = record(on: now), !record.isClosed else {

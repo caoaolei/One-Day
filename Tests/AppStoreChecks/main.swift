@@ -30,12 +30,15 @@ struct AppStoreChecks {
         suite.run("自动采样与工时记录持久化", suite.checkWorktimeSamplingPersistence)
         suite.run("目标工时正确计算预计下班与进度", suite.checkWorktimeTargetCalculation)
         suite.run("预计下班提醒随目标更新并在结束后取消", suite.checkWorktimeTargetNotification)
+        suite.run("任务名称保留中间空格", suite.checkTaskTitleSpacing)
+        suite.run("子任务独立完成并进入成果档案", suite.checkSubtaskLifecycle)
+        suite.run("工时日历可补录并再次修正", suite.checkManualWorktimeBackfill)
 
         if suite.failureCount > 0 {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 24 checks")
+        print("PASSED: 27 checks")
     }
 }
 
@@ -546,6 +549,96 @@ private struct CheckSuite {
         let record = try require(controller.record(on: context.clock.now), "复盘后工时记录消失")
         try expect(!record.isClosed, "完成复盘错误结束了自动工时")
         try expect(record.spanSeconds == 60 * 60, "完成复盘后自动工时没有继续更新")
+    }
+
+    func checkTaskTitleSpacing() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        let task = context.store.addTask(
+            title: "整理 项目 方案",
+            category: "测试",
+            estimatedMinutes: 30,
+            date: context.clock.now
+        )
+        try expect(task.title == "整理 项目 方案", "创建任务时丢失了中间空格")
+
+        let reloaded = AppStore(
+            dataURL: context.directory.appendingPathComponent("data.json"),
+            notificationManager: NotificationRecorder(),
+            nowProvider: { context.clock.now }
+        )
+        try expect(reloaded.tasks.first?.title == "整理 项目 方案", "持久化后丢失了任务名空格")
+    }
+
+    func checkSubtaskLifecycle() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+
+        let parent = context.store.addTaskWithSubtasks(
+            title: "发布产品说明",
+            category: "写作",
+            estimatedMinutes: 60,
+            date: context.clock.now,
+            subtasks: [
+                TaskSubtaskDraft(title: "补充 功能截图", estimatedMinutes: 20),
+                TaskSubtaskDraft(title: "检查更新日志", estimatedMinutes: 15)
+            ]
+        )
+        let children = context.store.subtasks(of: parent)
+        try expect(children.count == 2, "没有一次创建全部子任务")
+        try expect(children.allSatisfy { $0.parentTaskID == parent.id }, "子任务没有关联父任务")
+        try expect(children.allSatisfy {
+            Calendar.yiRi.isDate($0.scheduledDate ?? .distantPast, inSameDayAs: context.clock.now)
+        }, "子任务没有继承父任务日期")
+
+        let completedChild = try require(children.first, "找不到要完成的子任务")
+        context.store.setCompleted(completedChild.id, completed: true)
+        try expect(context.store.completedTasks().contains(where: { $0.id == completedChild.id }), "子任务没有进入成果档案")
+
+        let reloaded = AppStore(
+            dataURL: context.directory.appendingPathComponent("data.json"),
+            notificationManager: NotificationRecorder(),
+            nowProvider: { context.clock.now }
+        )
+        try expect(reloaded.tasks.first(where: { $0.id == completedChild.id })?.parentTaskID == parent.id, "父子关系没有持久化")
+
+        let futureResult = context.store.addFutureWorkdayTasks(
+            title: "连续主任务",
+            category: "规划",
+            estimatedMinutes: 30,
+            workdayCount: 1,
+            skipDuplicates: true,
+            subtasks: [TaskSubtaskDraft(title: "连续子任务", estimatedMinutes: 10)],
+            referenceDate: context.clock.now
+        )
+        try expect(futureResult.createdCount == 1, "带子任务的未来计划没有创建主任务")
+        let futureParent = try require(context.store.tasks.first(where: { $0.title == "连续主任务" }), "找不到未来主任务")
+        let futureChild = try require(context.store.tasks.first(where: { $0.title == "连续子任务" }), "找不到未来子任务")
+        try expect(futureChild.parentTaskID == futureParent.id, "未来计划中的子任务关联错误")
+        try expect(futureChild.scheduledDate == futureParent.scheduledDate, "未来子任务没有继承主任务日期")
+
+        context.store.deleteTask(parent.id)
+        try expect(context.store.tasks.contains(where: { $0.id == completedChild.id }), "删除父任务时错误删除了子任务")
+        try expect(context.store.tasks.first(where: { $0.id == completedChild.id })?.parentTaskID == nil, "删除父任务后留下了失效关联")
+    }
+
+    func checkManualWorktimeBackfill() throws {
+        var ledger = WorktimeLedger()
+        let day = Date(timeIntervalSince1970: 1_700_000_000).startOfLocalDay
+        let start = day.addingTimeInterval(9 * 3600 + 30 * 60)
+        let end = day.addingTimeInterval(18 * 3600 + 30 * 60)
+
+        try expect(ledger.setManualRecord(on: day, startAt: start, endAt: end), "无法为无记录日期补录工时")
+        var record = try require(ledger.record(on: day), "补录后没有生成日期记录")
+        try expect(record.isManuallyAdjusted && record.isClosed, "补录记录没有标记为手动且已结束")
+        try expect(record.spanSeconds == 9 * 3600, "补录工时没有按下班减上班计算")
+
+        let correctedEnd = day.addingTimeInterval(19 * 3600)
+        try expect(ledger.setManualRecord(on: day, startAt: start, endAt: correctedEnd), "无法再次修正补录工时")
+        record = try require(ledger.record(on: day), "修正后记录消失")
+        try expect(ledger.records.count == 1, "再次修正时重复创建了日期记录")
+        try expect(record.spanSeconds == 9 * 3600 + 30 * 60, "再次修正的工时不正确")
     }
 
     private func addCompletedTask(

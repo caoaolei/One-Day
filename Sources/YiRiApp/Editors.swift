@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ProfileSetupSheet: View {
@@ -65,6 +66,7 @@ struct TaskEditorSheet: View {
 
     let defaultDate: Date
     let task: TaskItem?
+    let parentTask: TaskItem?
     @State private var title: String
     @State private var category: String
     @State private var estimatedMinutes: Int
@@ -73,18 +75,31 @@ struct TaskEditorSheet: View {
     @State private var workdayCount = 5
     @State private var skipDuplicates = true
     @State private var suggestionReason = ""
-    @FocusState private var focusedField: TaskEditorField?
+    @State private var titleIsFocused = false
+    @State private var subtasks: [TaskSubtaskDraft] = []
+    @State private var subtasksExpanded = false
 
     private let categories = ["深度工作", "日常", "写作", "规划", "复盘", "自定义"]
 
-    init(defaultDate: Date, task: TaskItem? = nil) {
+    init(defaultDate: Date, task: TaskItem? = nil, parentTask: TaskItem? = nil) {
         self.defaultDate = defaultDate
         self.task = task
+        self.parentTask = parentTask
         _title = State(initialValue: task?.title ?? "")
-        _category = State(initialValue: task?.category ?? "深度工作")
+        _category = State(initialValue: task?.category ?? parentTask?.category ?? "深度工作")
         _estimatedMinutes = State(initialValue: task?.estimatedMinutes ?? 45)
-        _scheduledDate = State(initialValue: task?.scheduledDate ?? defaultDate)
+        _scheduledDate = State(initialValue: task?.scheduledDate ?? parentTask?.scheduledDate ?? defaultDate)
         _scheduleMode = State(initialValue: .single)
+    }
+
+    private var isAddingSubtask: Bool {
+        task == nil && parentTask != nil
+    }
+
+    private var validSubtasks: [TaskSubtaskDraft] {
+        subtasks.filter {
+            !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 
     private var futurePlan: FutureWorkdayPlan {
@@ -97,7 +112,12 @@ struct TaskEditorSheet: View {
 
     private var submitTitle: String {
         if task != nil { return "保存修改" }
-        if scheduleMode == .workdays { return "创建 \(futurePlan.creatableDates.count) 个任务" }
+        if isAddingSubtask { return "添加子任务" }
+        if scheduleMode == .workdays {
+            return validSubtasks.isEmpty
+                ? "创建 \(futurePlan.creatableDates.count) 个任务"
+                : "创建 \(futurePlan.creatableDates.count) 组任务"
+        }
         if Calendar.yiRi.isDate(scheduledDate, inSameDayAs: Date()) { return "加入今天" }
         if Calendar.yiRi.isDate(scheduledDate, inSameDayAs: Date().addingDays(1)) { return "安排到明天" }
         return "创建未来任务"
@@ -105,15 +125,27 @@ struct TaskEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            sheetHeader(title: task == nil ? "添加任务" : "编辑任务", subtitle: "自动估时会优先参考你过去的实际用时")
+            sheetHeader(
+                title: isAddingSubtask ? "添加子任务" : (task == nil ? "添加任务" : "编辑任务"),
+                subtitle: isAddingSubtask
+                    ? "子任务会独立完成、计时，并进入成果档案"
+                    : "自动估时会优先参考你过去的实际用时"
+            )
 
             Form {
+                if let parentTask {
+                    LabeledContent("所属任务") {
+                        Label(parentTask.title, systemImage: "arrow.turn.down.right")
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 LabeledContent("任务名称") {
-                    TextField("例如：整理项目方案", text: $title)
-                        .textFieldStyle(.plain)
-                        .focused($focusedField, equals: .title)
-                        .font(.body)
-                        .tint(YiRiTheme.accent)
+                    SpacePreservingTextField(
+                        placeholder: isAddingSubtask ? "例如：补充数据图表" : "例如：整理项目方案",
+                        text: $title,
+                        isFocused: $titleIsFocused,
+                        requestsInitialFocus: true
+                    )
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(YiRiTheme.inputBackground)
@@ -121,16 +153,23 @@ struct TaskEditorSheet: View {
                         .overlay {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(
-                                    focusedField == .title ? YiRiTheme.accent : YiRiTheme.border,
-                                    lineWidth: focusedField == .title ? 1.5 : 1
+                                    titleIsFocused ? YiRiTheme.accent : YiRiTheme.border,
+                                    lineWidth: titleIsFocused ? 1.5 : 1
                                 )
                         }
                         .frame(minWidth: 340)
                 }
-                Picker("分类", selection: $category) {
-                    ForEach(categories, id: \.self) { Text($0).tag($0) }
+                if isAddingSubtask {
+                    LabeledContent("分类") {
+                        Text(category)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Picker("分类", selection: $category) {
+                        ForEach(categories, id: \.self) { Text($0).tag($0) }
+                    }
                 }
-                if task == nil {
+                if task == nil && parentTask == nil {
                     Picker("安排方式", selection: $scheduleMode) {
                         ForEach(TaskScheduleMode.allCases) { mode in
                             Text(mode.rawValue).tag(mode)
@@ -139,7 +178,12 @@ struct TaskEditorSheet: View {
                     .pickerStyle(.segmented)
                 }
 
-                if task != nil || scheduleMode == .single {
+                if isAddingSubtask {
+                    LabeledContent("安排日期") {
+                        Text(DateFormatter.yiRiSidebarDate.string(from: scheduledDate))
+                            .foregroundStyle(.secondary)
+                    }
+                } else if task != nil || scheduleMode == .single {
                     DatePicker("安排日期", selection: $scheduledDate, displayedComponents: .date)
                 } else {
                     Stepper("连续 \(workdayCount) 个工作日", value: $workdayCount, in: 1...92)
@@ -152,7 +196,11 @@ struct TaskEditorSheet: View {
                                 "\(DateFormatter.yiRiSidebarDate.string(from: firstDate)) 至 \(DateFormatter.yiRiSidebarDate.string(from: lastDate))",
                                 systemImage: "calendar.badge.plus"
                             )
-                            Text("将创建 \(futurePlan.creatableDates.count) 条任务" + (futurePlan.skippedDuplicateCount > 0 ? "，跳过 \(futurePlan.skippedDuplicateCount) 条重复" : ""))
+                            Text(
+                                "将创建 \(futurePlan.creatableDates.count) 条主任务"
+                                    + (validSubtasks.isEmpty ? "" : "，每条带 \(validSubtasks.count) 个子任务")
+                                    + (futurePlan.skippedDuplicateCount > 0 ? "，跳过 \(futurePlan.skippedDuplicateCount) 条重复" : "")
+                            )
                                 .foregroundStyle(.secondary)
                         }
                         .font(.caption)
@@ -176,6 +224,60 @@ struct TaskEditorSheet: View {
                         .font(.caption)
                         .foregroundStyle(YiRiTheme.accent)
                 }
+
+                if task == nil && parentTask == nil {
+                    DisclosureGroup(isExpanded: $subtasksExpanded) {
+                        VStack(spacing: 10) {
+                            ForEach($subtasks) { $subtask in
+                                HStack(spacing: 8) {
+                                    Image(systemName: "arrow.turn.down.right")
+                                        .font(.caption)
+                                        .foregroundStyle(YiRiTheme.accent)
+                                    SpacePreservingTextField(
+                                        placeholder: "子任务名称",
+                                        text: $subtask.title
+                                    )
+                                    .frame(minHeight: 24)
+                                    Stepper(
+                                        "\(subtask.estimatedMinutes) 分钟",
+                                        value: $subtask.estimatedMinutes,
+                                        in: 5...480,
+                                        step: 5
+                                    )
+                                    .frame(width: 125)
+                                    Button(role: .destructive) {
+                                        subtasks.removeAll { $0.id == subtask.id }
+                                    } label: {
+                                        Image(systemName: "minus.circle")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help("移除子任务")
+                                }
+                                .padding(8)
+                                .background(YiRiTheme.secondaryPanel.opacity(0.72))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+
+                            Button {
+                                subtasks.append(TaskSubtaskDraft())
+                            } label: {
+                                Label(subtasks.isEmpty ? "新建子任务" : "继续添加子任务", systemImage: "plus")
+                            }
+                            .buttonStyle(.borderless)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.top, 8)
+                    } label: {
+                        HStack {
+                            Label("子任务", systemImage: "list.bullet.indent")
+                            if !subtasks.isEmpty {
+                                Text("\(subtasks.count)")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
             }
             .formStyle(.grouped)
 
@@ -190,12 +292,20 @@ struct TaskEditorSheet: View {
                         task.estimatedMinutes = estimatedMinutes
                         task.scheduledDate = scheduledDate.startOfLocalDay
                         store.updateTask(task)
+                    } else if let parentTask {
+                        store.addSubtask(
+                            to: parentTask,
+                            title: trimmedTitle,
+                            estimatedMinutes: estimatedMinutes,
+                            date: scheduledDate
+                        )
                     } else if scheduleMode == .single {
-                        store.addTask(
+                        store.addTaskWithSubtasks(
                             title: trimmedTitle,
                             category: category,
                             estimatedMinutes: estimatedMinutes,
-                            date: scheduledDate
+                            date: scheduledDate,
+                            subtasks: validSubtasks
                         )
                     } else {
                         store.addFutureWorkdayTasks(
@@ -203,7 +313,8 @@ struct TaskEditorSheet: View {
                             category: category,
                             estimatedMinutes: estimatedMinutes,
                             workdayCount: workdayCount,
-                            skipDuplicates: skipDuplicates
+                            skipDuplicates: skipDuplicates,
+                            subtasks: validSubtasks
                         )
                     }
                     dismiss()
@@ -216,17 +327,70 @@ struct TaskEditorSheet: View {
             }
         }
         .padding(24)
-        .frame(width: 580, height: task == nil ? 520 : 440)
-        .onAppear {
-            DispatchQueue.main.async {
-                focusedField = .title
-            }
-        }
+        .frame(width: 620, height: task == nil && parentTask == nil ? 620 : 440)
     }
 }
 
-private enum TaskEditorField: Hashable {
-    case title
+private struct SpacePreservingTextField: NSViewRepresentable {
+    let placeholder: String
+    @Binding var text: String
+    var isFocused: Binding<Bool> = .constant(false)
+    var requestsInitialFocus = false
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSTextField {
+        let textField = NSTextField(string: text)
+        textField.placeholderString = placeholder
+        textField.isBordered = false
+        textField.drawsBackground = false
+        textField.focusRingType = .none
+        textField.font = .systemFont(ofSize: NSFont.systemFontSize)
+        textField.textColor = .labelColor
+        textField.usesSingleLineMode = true
+        textField.lineBreakMode = .byTruncatingTail
+        textField.delegate = context.coordinator
+        textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return textField
+    }
+
+    func updateNSView(_ textField: NSTextField, context: Context) {
+        context.coordinator.parent = self
+        textField.placeholderString = placeholder
+        if textField.stringValue != text {
+            textField.stringValue = text
+        }
+        guard requestsInitialFocus, !context.coordinator.didRequestInitialFocus else { return }
+        context.coordinator.didRequestInitialFocus = true
+        DispatchQueue.main.async {
+            textField.window?.makeFirstResponder(textField)
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: SpacePreservingTextField
+        var didRequestInitialFocus = false
+
+        init(parent: SpacePreservingTextField) {
+            self.parent = parent
+        }
+
+        func controlTextDidBeginEditing(_ notification: Notification) {
+            parent.isFocused.wrappedValue = true
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let textField = notification.object as? NSTextField else { return }
+            parent.text = textField.stringValue
+        }
+
+        func controlTextDidEndEditing(_ notification: Notification) {
+            parent.isFocused.wrappedValue = false
+        }
+    }
 }
 
 private enum TaskScheduleMode: String, CaseIterable, Identifiable {
