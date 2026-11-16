@@ -679,28 +679,19 @@ final class AppStore: ObservableObject {
         return added
     }
 
-    func autoEstimate(title: String, category: String) -> EstimateSuggestion {
-        let historical = tasks.filter { item in
-            guard item.actualSeconds >= 60 else { return false }
-            if item.category == category { return true }
-            return Self.sharesKeyword(item.title, title)
-        }
-        let minutes = historical.map { max(5, $0.actualSeconds / 60) }.sorted()
-        if !minutes.isEmpty {
-            let middle = minutes.count / 2
-            let median = minutes.count.isMultiple(of: 2)
-                ? Double(minutes[middle - 1] + minutes[middle]) / 2.0
-                : Double(minutes[middle])
-            let rounded = max(5, Int((median / 5.0).rounded()) * 5)
-            return EstimateSuggestion(minutes: rounded, reason: "基于 \(minutes.count) 次相似任务的中位用时")
+    func autoEstimate(title: String, category: String, excluding taskID: UUID? = nil) -> EstimateSuggestion {
+        let history = estimateHistory().filter { $0.id != taskID }
+        if let suggestion = historicalEstimate(title: title, category: category, history: history) {
+            return suggestion
         }
 
+        let normalizedTitle = NormalizedTitle(title).compact
         let fallback: Int
-        if title.contains("邮件") || title.contains("消息") || title.contains("回复") {
+        if ["邮件", "消息", "回复", "email"].contains(where: normalizedTitle.contains) {
             fallback = 30
-        } else if title.contains("写") || title.contains("方案") || title.contains("报告") {
+        } else if ["写", "方案", "报告"].contains(where: normalizedTitle.contains) {
             fallback = 90
-        } else if title.contains("会议") || title.contains("评审") || title.contains("沟通") {
+        } else if ["会议", "评审", "沟通"].contains(where: normalizedTitle.contains) {
             fallback = 60
         } else {
             fallback = 45
@@ -708,9 +699,74 @@ final class AppStore: ObservableObject {
         return EstimateSuggestion(minutes: fallback, reason: "历史数据不足，按任务类型给出初始建议")
     }
 
-    private static func sharesKeyword(_ left: String, _ right: String) -> Bool {
-        let keywords = ["邮件", "复盘", "原型", "写作", "报告", "会议", "整理", "设计", "评审"]
-        return keywords.contains { left.contains($0) && right.contains($0) }
+    func recommendNextTask(at referenceDate: Date? = nil) -> NextTaskRecommendation {
+        let now = referenceDate ?? nowProvider()
+        let pending = tasks(on: now).filter { !$0.isCompleted }
+        guard !pending.isEmpty else { return .noPendingTasks }
+        if timerStartedAt != nil, activeTask != nil { return .focusInProgress }
+
+        // Include meetings already underway, even if they started the previous day.
+        if meetings.contains(where: {
+            $0.startDate <= now && $0.startDate.addingTimeInterval(Double($0.durationMinutes) * 60) > now
+        }) {
+            return .meetingInProgress
+        }
+        let nextMeeting = meetings
+            .map(\.startDate)
+            .filter { $0 > now && $0 < now.addingDays(1) }
+            .min()
+        let availableMinutes = nextMeeting.map { max(0, Int($0.timeIntervalSince(now) / 60) - 5) }
+        let history = estimateHistory()
+        var best: (task: TaskItem, minutes: Int, reason: String)?
+
+        for task in pending {
+            let estimate = historicalEstimate(title: task.title, category: task.category, history: history)
+                ?? EstimateSuggestion(minutes: max(5, task.estimatedMinutes), reason: "使用计划中的预计用时")
+            let spentSeconds = max(0, task.actualSeconds)
+            let remaining = Double(estimate.minutes) - Double(spentSeconds) / 60
+            let projected = remaining > 0 ? Int(remaining.rounded(.up)) : estimate.minutes
+            let reason: String
+            if spentSeconds == 0 {
+                reason = estimate.reason
+            } else if remaining > 0 {
+                reason = "\(estimate.reason)，已扣除已记录的专注时间"
+            } else {
+                reason = "\(estimate.reason)，已超过原估时，暂按完整时长预留"
+            }
+            if let availableMinutes, projected > availableMinutes { continue }
+            if let best, projected <= best.minutes { continue }
+            best = (task, projected, reason)
+        }
+        guard let best else { return .noTaskFits(availableMinutes: availableMinutes ?? 0) }
+        return .task(best.task, minutes: best.minutes, estimateReason: best.reason, availableMinutes: availableMinutes)
+    }
+
+    private func estimateHistory() -> [TaskItem] {
+        completedTasks().filter { $0.actualSeconds >= 60 }
+    }
+
+    private func historicalEstimate(title: String, category: String, history: [TaskItem]) -> EstimateSuggestion? {
+        let normalized = NormalizedTitle(title).compact
+        guard !normalized.isEmpty else { return nil }
+        let exact = history.filter { NormalizedTitle($0.title).compact == normalized }
+        if !exact.isEmpty { return medianEstimate(exact, source: "同名") }
+
+        let similar = history.filter { HistoryInsights.titlesAreSimilar($0.title, title) }
+        if !similar.isEmpty { return medianEstimate(similar, source: "名称相似的") }
+
+        let sameCategory = history.filter { $0.category == category }
+        guard !sameCategory.isEmpty else { return nil }
+        return medianEstimate(sameCategory, source: "同分类的")
+    }
+
+    private func medianEstimate(_ tasks: [TaskItem], source: String) -> EstimateSuggestion {
+        let minutes = tasks.prefix(12).map { Double($0.actualSeconds) / 60 }.sorted()
+        let center = minutes.count / 2
+        let median = minutes.count.isMultiple(of: 2)
+            ? (minutes[center - 1] + minutes[center]) / 2
+            : minutes[center]
+        let rounded = min(480, max(5, (median / 5).rounded() * 5))
+        return EstimateSuggestion(minutes: Int(rounded), reason: "参考最近 \(minutes.count) 条\(source)任务的实际用时")
     }
 
     private func load() {

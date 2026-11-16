@@ -12,6 +12,8 @@ struct AppStoreChecks {
         suite.run("损坏数据先备份再恢复", suite.checkCorruptDataRecovery)
         suite.run("首次启动不注入演示活动", suite.checkCleanFirstLaunch)
         suite.run("偶数历史记录使用平均中位数", suite.checkEvenMedian)
+        suite.run("估时优先匹配标题并排除未完成记录", suite.checkEstimateTitlePriority)
+        suite.run("任务推荐结合历史用时、剩余用时和会议空档", suite.checkTaskRecommendation)
         suite.run("完成任务按今天与全部历史分组", suite.checkCompletedGrouping)
         suite.run("完成与恢复立即更新看板分组", suite.checkCompleteAndRestore)
         suite.run("零计时任务显示为手动完成", suite.checkCompletionEffortText)
@@ -38,7 +40,7 @@ struct AppStoreChecks {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 27 checks")
+        print("PASSED: 29 checks")
     }
 }
 
@@ -146,8 +148,65 @@ private struct CheckSuite {
         tasks[1].actualSeconds = 40 * 60
         context.store.updateTask(tasks[0])
         context.store.updateTask(tasks[1])
+        context.store.setCompleted(tasks[0].id, completed: true)
+        context.store.setCompleted(tasks[1].id, completed: true)
 
         try expect(context.store.autoEstimate(title: "新分析", category: "分析").minutes == 30, "偶数中位数不是 30 分钟")
+    }
+
+    func checkEstimateTitlePriority() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+        let date = context.clock.now
+        let exact = try addCompletedTask(to: context, title: "API 文档", completedAt: date, actualSeconds: 25 * 60)
+        _ = try addCompletedTask(to: context, title: "API 文档 内部版", completedAt: date, actualSeconds: 35 * 60)
+        _ = try addCompletedTask(to: context, title: "清理收件箱", completedAt: date, actualSeconds: 95 * 60, category: "写作")
+        var unfinished = context.store.addTask(title: "ＡＰＩ－文档", category: "写作", estimatedMinutes: 30, date: date)
+        unfinished.actualSeconds = 180 * 60
+        context.store.updateTask(unfinished)
+
+        let estimate = context.store.autoEstimate(title: unfinished.title, category: unfinished.category)
+        try expect(estimate.minutes == 25 && estimate.reason.contains("同名"), "同名结果被未完成任务或分类样本干扰")
+        let withoutSelf = context.store.autoEstimate(title: exact.title, category: "写作", excluding: exact.id)
+        try expect(withoutSelf.minutes == 35 && withoutSelf.reason.contains("名称相似"), "编辑时使用了自身实际用时，或未优先参考相似名称")
+    }
+
+    func checkTaskRecommendation() throws {
+        let start = try date(year: 2026, month: 11, day: 16, hour: 10)
+        let context = try TestContext(now: start)
+        defer { context.cleanUp() }
+        let store = context.store
+        _ = try addCompletedTask(to: context, title: "整理项目报表", completedAt: start.addingDays(-1), actualSeconds: 60 * 60)
+        let longTask = store.addTask(title: "整理项目报表", category: "规划", estimatedMinutes: 15, date: start)
+        let shortTask = store.addTask(title: "检查工单", category: "日常", estimatedMinutes: 20, date: start)
+        _ = store.addTask(title: "明天准备方案", category: "写作", estimatedMinutes: 80, date: start.addingDays(1))
+
+        if case .task(let task, let minutes, _, nil) = store.recommendNextTask(at: start) {
+            try expect(task.id == longTask.id && minutes == 60, "没有用历史估时选出预计较长的今日待办")
+        } else { throw CheckError("无会议时应推荐一项任务") }
+
+        store.addMeeting(title: "评审", startDate: start.addingTimeInterval(30 * 60), durationMinutes: 20, location: "")
+        if case .task(let task, let minutes, _, 25) = store.recommendNextTask(at: start) {
+            try expect(task.id == shortTask.id && minutes == 20, "没有优先推荐能在会前完成的任务")
+        } else { throw CheckError("未为会议留出 5 分钟准备时间") }
+
+        var started = longTask
+        started.actualSeconds = 35 * 60
+        store.updateTask(started)
+        if case .task(let task, 25, _, 25) = store.recommendNextTask(at: start) {
+            try expect(task.id == longTask.id, "没有按剩余用时推荐已开始的任务")
+        } else { throw CheckError("剩余用时计算错误") }
+
+        if case .noTaskFits(availableMinutes: 5) = store.recommendNextTask(at: start.addingTimeInterval(20 * 60)) {} else {
+            throw CheckError("空档太短时仍然推荐任务")
+        }
+        if case .meetingInProgress = store.recommendNextTask(at: start.addingTimeInterval(30 * 60)) {} else {
+            throw CheckError("会议进行时仍然推荐任务")
+        }
+        store.startTask(shortTask.id)
+        if case .focusInProgress = store.recommendNextTask(at: start) {} else {
+            throw CheckError("已有运行中的计时仍然推荐切换任务")
+        }
     }
 
     func checkWorktimeSpanIncludesBreaks() throws {

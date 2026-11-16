@@ -74,7 +74,7 @@ struct TaskEditorSheet: View {
     @State private var scheduleMode: TaskScheduleMode
     @State private var workdayCount = 5
     @State private var skipDuplicates = true
-    @State private var suggestionReason = ""
+    @State private var estimateSuggestion: EstimateSuggestion?
     @State private var titleIsFocused = false
     @State private var subtasks: [TaskSubtaskDraft] = []
     @State private var subtasksExpanded = false
@@ -211,16 +211,16 @@ struct TaskEditorSheet: View {
                     Stepper("预计 \(estimatedMinutes.durationText)", value: $estimatedMinutes, in: 5...480, step: 5)
                     Spacer()
                     Button {
-                        let suggestion = store.autoEstimate(title: title, category: category)
+                        let suggestion = store.autoEstimate(title: title, category: category, excluding: task?.id)
                         estimatedMinutes = suggestion.minutes
-                        suggestionReason = suggestion.reason
+                        estimateSuggestion = suggestion
                     } label: {
                         Label("自动估时", systemImage: "sparkles")
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                if !suggestionReason.isEmpty {
-                    Label("建议 \(estimatedMinutes.durationText) · \(suggestionReason)，你仍可修改", systemImage: "wand.and.stars")
+                if let estimateSuggestion, estimatedMinutes == estimateSuggestion.minutes {
+                    Label("建议 \(estimatedMinutes.durationText) · \(estimateSuggestion.reason)，你仍可修改", systemImage: "wand.and.stars")
                         .font(.caption)
                         .foregroundStyle(YiRiTheme.accent)
                 }
@@ -328,6 +328,8 @@ struct TaskEditorSheet: View {
         }
         .padding(24)
         .frame(width: 620, height: task == nil && parentTask == nil ? 620 : 440)
+        .onChange(of: title) { _ in estimateSuggestion = nil }
+        .onChange(of: category) { _ in estimateSuggestion = nil }
     }
 }
 

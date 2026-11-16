@@ -8,6 +8,7 @@ struct TodayView: View {
     @State private var editingTask: TaskItem?
     @State private var editingMeeting: MeetingItem?
     @State private var subtaskParent: TaskItem?
+    @State private var recommendationRequestedAt: Date?
 
     private var todayTasks: [TaskItem] {
         let tasks = store.tasks(on: Date())
@@ -37,7 +38,7 @@ struct TodayView: View {
                     displayName: store.settings.displayName
                 )
             } else {
-                todayWorkspace
+                todayWorkspace(on: context.date)
             }
         }
         .sheet(isPresented: $showingTaskEditor) {
@@ -61,7 +62,7 @@ struct TodayView: View {
         }
     }
 
-    private var todayWorkspace: some View {
+    private func todayWorkspace(on date: Date) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 pageHeader
@@ -73,7 +74,7 @@ struct TodayView: View {
                 }
 
                 HStack(alignment: .top, spacing: 18) {
-                    taskPanel
+                    taskPanel(on: date)
                         .frame(maxWidth: .infinity)
                     meetingPanel
                         .frame(width: 300)
@@ -124,15 +125,29 @@ struct TodayView: View {
         }
     }
 
-    private var taskPanel: some View {
+    private func taskPanel(on date: Date) -> some View {
         Panel {
             VStack(alignment: .leading, spacing: 12) {
                 let completed = todayTasks.filter(\.isCompleted).count
                 let totalMinutes = todayTasks.reduce(0) { $0 + $1.estimatedMinutes }
-                SectionHeader(
-                    title: "今日计划",
-                    subtitle: "\(completed) / \(todayTasks.count) 已完成 · 计划 \(totalMinutes.durationText)"
-                )
+                HStack {
+                    SectionHeader(
+                        title: "今日计划",
+                        subtitle: "\(completed) / \(todayTasks.count) 已完成 · 计划 \(totalMinutes.durationText)"
+                    )
+                    Spacer()
+                    Button {
+                        let now = Date()
+                        recommendationRequestedAt = recommendationRequestedAt?.startOfLocalDay == now.startOfLocalDay ? nil : now
+                    } label: {
+                        Label("推荐先做", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if recommendationRequestedAt?.startOfLocalDay == date.startOfLocalDay {
+                    recommendationCard(store.recommendNextTask())
+                }
 
                 Divider()
 
@@ -153,6 +168,52 @@ struct TodayView: View {
                 }
             }
         }
+    }
+
+    private func recommendationCard(_ recommendation: NextTaskRecommendation) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            switch recommendation {
+            case .noPendingTasks:
+                Text("今日计划里没有待做的任务。")
+            case .focusInProgress:
+                Text("当前有任务正在计时，结束或暂停后可以查看下一项建议。")
+            case .meetingInProgress:
+                Text("当前有会议，会议结束后可以查看推荐。")
+            case .noTaskFits(let availableMinutes):
+                Text(availableMinutes == 0
+                     ? "下一场会议快开始了，可以先准备会议。"
+                     : "预留 5 分钟准备会议后，还有 \(availableMinutes) 分钟，当前没有预计能做完的任务。")
+            case .task(let task, let minutes, let reason, let availableMinutes):
+                HStack {
+                    Text(task.title)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Button(store.activeTaskID == task.id ? "继续专注" : "开始专注") {
+                        let now = Date()
+                        if case .task(let current, _, _, _) = store.recommendNextTask(at: now), current.id == task.id {
+                            store.startTask(task.id)
+                        } else {
+                            recommendationRequestedAt = now
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                Text("预计还需约 \(minutes.durationText) · \(reason)")
+                    .foregroundStyle(.secondary)
+                if let availableMinutes {
+                    Text("预留 5 分钟准备会议后，还有 \(availableMinutes.durationText)。")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("今天没有后续会议，优先安排预计用时较长的任务。")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .font(.caption)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(YiRiTheme.accentSoft.opacity(0.7))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private var meetingPanel: some View {

@@ -175,7 +175,7 @@ enum HistoryInsights {
     }
 }
 
-private struct NormalizedTitle {
+struct NormalizedTitle {
     let compact: String
     let tokens: Set<String>
     let orderedTokens: [String]

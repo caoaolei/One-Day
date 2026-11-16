@@ -170,6 +170,14 @@ struct EstimateSuggestion: Equatable {
     let reason: String
 }
 
+enum NextTaskRecommendation {
+    case noPendingTasks
+    case focusInProgress
+    case meetingInProgress
+    case noTaskFits(availableMinutes: Int)
+    case task(TaskItem, minutes: Int, estimateReason: String, availableMinutes: Int?)
+}
+
 struct PersistenceIssue: Identifiable, Equatable {
     let id = UUID()
     let title: String
