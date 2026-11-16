@@ -9,11 +9,11 @@ struct ReviewView: View {
     private var tasks: [TaskItem] { store.tasks(on: Date()) }
     private var completed: [TaskItem] { tasks.filter(\.isCompleted) }
     private var timedCompleted: [TaskItem] { completed.filter { $0.actualSeconds > 0 } }
-    private var actualSeconds: Int { timedCompleted.reduce(0) { $0 + $1.actualSeconds } }
+    private var completedSeconds: Int { timedCompleted.reduce(0) { $0 + $1.actualSeconds } }
     private var estimatedSeconds: Int { timedCompleted.reduce(0) { $0 + $1.estimatedMinutes * 60 } }
     private var accuracy: Int? {
         guard estimatedSeconds > 0 else { return nil }
-        let difference = abs(actualSeconds - estimatedSeconds)
+        let difference = abs(completedSeconds - estimatedSeconds)
         return max(0, Int((1 - Double(difference) / Double(estimatedSeconds)) * 100))
     }
 
@@ -63,7 +63,7 @@ struct ReviewView: View {
                     HStack(spacing: 28) {
                         StatView(value: "\(completed.count) / \(tasks.count)", label: "完成任务")
                         Divider().frame(height: 44)
-                        StatView(value: actualSeconds.secondsDurationText, label: "实际专注")
+                        StatView(value: totalTaskSeconds(tasks).secondsDurationText, label: "任务计时合计")
                         Divider().frame(height: 44)
                         StatView(value: accuracy.map { "\($0)%" } ?? "—", label: "估时准确度")
                     }
@@ -155,24 +155,23 @@ struct ReviewView: View {
     }
 
     private func finalizeReview() {
-        if store.activeTask != nil {
-            store.finishActiveTask()
-        }
         let finalTasks = store.tasks(on: Date())
         let finalCompleted = finalTasks.filter(\.isCompleted)
-        let focusedSeconds = finalCompleted.reduce(0) { result, task in
-            result + max(0, task.actualSeconds)
-        }
         let summary = ReviewCompletionSummary(
             displayName: store.settings.displayName,
             completedCount: finalCompleted.count,
             totalCount: finalTasks.count,
-            focusedSeconds: focusedSeconds,
+            focusedSeconds: totalTaskSeconds(finalTasks),
             hasNote: !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         )
 
         guard store.saveReview(note: note) else { return }
         completionSummary = summary
+    }
+
+    private func totalTaskSeconds(_ tasks: [TaskItem]) -> Int {
+        let now = Date()
+        return tasks.reduce(0) { $0 + store.elapsedSeconds(for: $1, at: now) }
     }
 }
 
@@ -280,7 +279,7 @@ private struct ReviewCompletionSheet: View {
                     )
                     ReviewCompletionStat(
                         value: summary.focusedSeconds.secondsDurationText,
-                        label: "专注时间",
+                        label: "任务计时合计",
                         systemImage: "timer"
                     )
                 }

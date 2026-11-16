@@ -163,6 +163,12 @@ struct PersistedState: Codable {
     var activeTaskID: UUID?
     var timerStartedAt: Date?
     var timerAccumulatedSeconds: Int
+    var focusSlots: [FocusSession?]?
+}
+
+struct FocusSession: Codable {
+    let taskID: UUID
+    var startedAt: Date?
 }
 
 struct EstimateSuggestion: Equatable {
@@ -173,6 +179,7 @@ struct EstimateSuggestion: Equatable {
 enum NextTaskRecommendation {
     case noPendingTasks
     case focusInProgress
+    case focusSlotsFull
     case meetingInProgress
     case noTaskFits(availableMinutes: Int)
     case task(TaskItem, minutes: Int, estimateReason: String, availableMinutes: Int?)

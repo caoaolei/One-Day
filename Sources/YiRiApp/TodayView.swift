@@ -69,9 +69,7 @@ struct TodayView: View {
 
                 WorktimeSummaryCard()
 
-                if let activeTask = store.activeTask {
-                    FocusTimerCard(task: activeTask)
-                }
+                focusPanel
 
                 HStack(alignment: .top, spacing: 18) {
                     taskPanel(on: date)
@@ -81,6 +79,62 @@ struct TodayView: View {
                 }
             }
             .yiRiPage()
+        }
+    }
+
+    private var focusPanel: some View {
+        let availableTasks = todayTasks.filter { !$0.isCompleted && store.focusSlot(for: $0.id) == nil }
+        return Panel {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    SectionHeader(
+                        title: "专注槽位",
+                        subtitle: "\(store.focusSlots.compactMap { $0 }.count) / \(store.focusSlots.count) 已占用"
+                    )
+                    Spacer()
+                    Button {
+                        store.addFocusSlot()
+                    } label: {
+                        Label("添加槽位", systemImage: "plus")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
+                    ForEach(store.focusSlots.indices, id: \.self) { slot in
+                        if let session = store.focusSlots[slot],
+                           let task = store.tasks.first(where: { $0.id == session.taskID }) {
+                            FocusTimerCard(task: task, slot: slot, isRunning: session.startedAt != nil)
+                        } else {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Label("槽位 \(slot + 1) · 空闲", systemImage: "timer")
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    if store.focusSlots.count > AppStore.defaultFocusSlotCount {
+                                        Button {
+                                            store.removeEmptyFocusSlot(slot)
+                                        } label: {
+                                            Image(systemName: "xmark")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .help("移除空闲槽位")
+                                        .accessibilityLabel("移除槽位 \(slot + 1)")
+                                    }
+                                }
+                                Menu("选择任务") {
+                                    ForEach(availableTasks) { task in
+                                        Button(task.title) { store.startTask(task.id, in: slot) }
+                                    }
+                                }
+                                .fixedSize()
+                                .disabled(availableTasks.isEmpty)
+                            }
+                            .font(.caption)
+                            .focusSlotStyle(background: YiRiTheme.inputBackground)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -176,7 +230,9 @@ struct TodayView: View {
             case .noPendingTasks:
                 Text("今日计划里没有待做的任务。")
             case .focusInProgress:
-                Text("当前有任务正在计时，结束或暂停后可以查看下一项建议。")
+                Text("今日待办都已开始计时。")
+            case .focusSlotsFull:
+                Text("槽位已满。可以完成或移出一项任务，也可以添加槽位。")
             case .meetingInProgress:
                 Text("当前有会议，会议结束后可以查看推荐。")
             case .noTaskFits(let availableMinutes):
@@ -188,7 +244,7 @@ struct TodayView: View {
                     Text(task.title)
                         .font(.subheadline.weight(.semibold))
                     Spacer()
-                    Button(store.activeTaskID == task.id ? "继续专注" : "开始专注") {
+                    Button(store.focusSlot(for: task.id) == nil ? "开始专注" : "继续专注") {
                         let now = Date()
                         if case .task(let current, _, _, _) = store.recommendNextTask(at: now), current.id == task.id {
                             store.startTask(task.id)
@@ -275,52 +331,61 @@ struct TodayView: View {
 private struct FocusTimerCard: View {
     @EnvironmentObject private var store: AppStore
     let task: TaskItem
+    let slot: Int
+    let isRunning: Bool
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let elapsed = store.elapsedSeconds(at: context.date)
-            HStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label(store.timerStartedAt == nil ? "已暂停" : "专注中", systemImage: store.timerStartedAt == nil ? "pause.circle.fill" : "circle.fill")
-                        .font(.caption.weight(.medium))
-                    Text(task.title)
-                        .font(.title3.weight(.medium))
-                    Text("预计 \(task.estimatedMinutes.durationText) · 达到预计时间时会提醒")
+            let elapsed = store.elapsedSeconds(for: task, at: context.date)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("槽位 \(slot + 1) · \(isRunning ? "专注中" : "已暂停")", systemImage: isRunning ? "timer" : "pause.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text(Self.timerText(elapsed))
-                        .font(.system(size: 34, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                    Text("已专注 / 预计 \(Self.timerText(task.estimatedMinutes * 60))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                HStack(spacing: 8) {
+                    Spacer()
                     Button {
-                        store.timerStartedAt == nil ? store.resumeActiveTask() : store.pauseActiveTask()
+                        store.stopTask(task.id)
                     } label: {
-                        Image(systemName: store.timerStartedAt == nil ? "play.fill" : "pause.fill")
-                            .frame(width: 22, height: 22)
+                        Image(systemName: "eject")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("移出槽位并保留已计时间")
+                    .accessibilityLabel("移出任务")
+                }
+                Text(task.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .help(task.title)
+                HStack(spacing: 8) {
+                    Text(Self.timerText(elapsed))
+                        .font(.system(size: 25, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer()
+                    Button {
+                        isRunning ? store.pauseTask(task.id) : store.resumeTask(task.id)
+                    } label: {
+                        Image(systemName: isRunning ? "pause.fill" : "play.fill")
                     }
                     .buttonStyle(.bordered)
-                    .help(store.timerStartedAt == nil ? "继续" : "暂停")
+                    .help(isRunning ? "暂停" : "继续")
+                    .accessibilityLabel(isRunning ? "暂停计时" : "继续计时")
 
                     Button {
-                        store.finishActiveTask()
+                        store.setCompleted(task.id, completed: true)
                     } label: {
                         Image(systemName: "checkmark")
-                            .frame(width: 22, height: 22)
                     }
                     .buttonStyle(.borderedProminent)
                     .help("完成任务")
+                    .accessibilityLabel("完成任务")
                 }
+                Text("预计 \(task.estimatedMinutes.durationText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding(20)
-            .background(YiRiTheme.accentSoft)
-            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .focusSlotStyle(background: YiRiTheme.accentSoft)
         }
     }
 
@@ -329,6 +394,15 @@ private struct FocusTimerCard: View {
         let minutes = (seconds % 3600) / 60
         let remaining = seconds % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, remaining)
+    }
+}
+
+private extension View {
+    func focusSlotStyle(background: Color) -> some View {
+        self
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 114, alignment: .topLeading)
+            .background(background, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -363,8 +437,8 @@ private struct TodayTaskRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if store.activeTaskID == task.id {
-                Text("专注中")
+            if let slot = store.focusSlot(for: task.id) {
+                Text("槽位 \(slot + 1) · \(store.focusSlots[slot]?.startedAt == nil ? "已暂停" : "专注中")")
                     .font(.caption)
                     .foregroundStyle(YiRiTheme.accent)
             } else if !task.isCompleted {
@@ -372,6 +446,8 @@ private struct TodayTaskRow: View {
                     store.startTask(task.id)
                 }
                 .buttonStyle(.bordered)
+                .disabled(!store.hasEmptyFocusSlot)
+                .help(store.hasEmptyFocusSlot ? "在空闲槽位开始计时" : "请先腾出或添加一个槽位")
             }
             Menu {
                 if task.parentTaskID == nil {

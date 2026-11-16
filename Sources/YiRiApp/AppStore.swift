@@ -8,9 +8,8 @@ final class AppStore: ObservableObject {
     @Published private(set) var templates: [TaskTemplate] = []
     @Published private(set) var reviews: [DailyReview] = []
     @Published var settings = AppSettings()
-    @Published private(set) var activeTaskID: UUID?
-    @Published private(set) var timerStartedAt: Date?
-    @Published private(set) var timerAccumulatedSeconds = 0
+    static let defaultFocusSlotCount = 2
+    @Published private(set) var focusSlots: [FocusSession?] = Array(repeating: nil, count: defaultFocusSlotCount)
     @Published private(set) var persistenceIssue: PersistenceIssue?
 
     private let dataURL: URL
@@ -51,9 +50,10 @@ final class AppStore: ObservableObject {
         load()
     }
 
-    var activeTask: TaskItem? {
-        guard let activeTaskID else { return nil }
-        return tasks.first(where: { $0.id == activeTaskID })
+    var hasEmptyFocusSlot: Bool { focusSlots.contains { $0 == nil } }
+
+    func focusSlot(for taskID: UUID) -> Int? {
+        focusSlots.firstIndex { $0?.taskID == taskID }
     }
 
     func tasks(on date: Date) -> [TaskItem] {
@@ -317,10 +317,7 @@ final class AppStore: ObservableObject {
             let isAlreadyCompletedToday = tasks[index].isCompleted
                 && tasks[index].completedAt.map { Calendar.yiRi.isDate($0, inSameDayAs: today) } == true
             guard !isAlreadyCompletedToday else { return false }
-            if activeTaskID == id {
-                finishActiveTask()
-                return true
-            }
+            releaseFocusSlot(for: index, at: now)
             tasks[index].isCompleted = true
             tasks[index].completedAt = now
         }
@@ -466,18 +463,24 @@ final class AppStore: ObservableObject {
 
     func updateTask(_ task: TaskItem) {
         guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
-        tasks[index] = task
-        if activeTaskID == task.id, timerStartedAt != nil {
-            scheduleEstimateReminder(for: task)
+        var updated = task
+        if let slot = focusSlot(for: task.id) {
+            if task.isCompleted { releaseFocusSlot(for: index, at: nowProvider()) }
+            updated.actualSeconds = tasks[index].actualSeconds
+            tasks[index] = updated
+            if focusSlots[slot]?.startedAt != nil { scheduleEstimateReminder(for: updated) }
+        } else {
+            tasks[index] = updated
         }
         save()
     }
 
     func setCompleted(_ id: UUID, completed: Bool) {
         guard let index = tasks.firstIndex(where: { $0.id == id }) else { return }
+        let now = nowProvider()
+        if completed { releaseFocusSlot(for: index, at: now) }
         tasks[index].isCompleted = completed
-        tasks[index].completedAt = completed ? nowProvider() : nil
-        if completed, activeTaskID == id { finishActiveTask() }
+        tasks[index].completedAt = completed ? now : nil
         save()
     }
 
@@ -492,26 +495,35 @@ final class AppStore: ObservableObject {
             tasks[index].parentTaskID = nil
         }
         tasks.removeAll { $0.id == id }
-        if activeTaskID == id {
+        if let slot = focusSlot(for: id) {
+            focusSlots[slot] = nil
             notificationManager.cancelEstimateReminder(taskID: id)
-            activeTaskID = nil
-            timerStartedAt = nil
-            timerAccumulatedSeconds = 0
         }
         save()
     }
 
-    func startTask(_ id: UUID) {
+    func addFocusSlot() {
+        focusSlots.append(nil)
+        save()
+    }
+
+    func removeEmptyFocusSlot(_ slot: Int) {
+        guard focusSlots.count > Self.defaultFocusSlotCount,
+              focusSlots.indices.contains(slot), focusSlots[slot] == nil else { return }
+        focusSlots.remove(at: slot)
+        save()
+    }
+
+    func startTask(_ id: UUID, in requestedSlot: Int? = nil) {
         guard let task = tasks.first(where: { $0.id == id }), !task.isCompleted else { return }
-        if activeTaskID == id {
-            if timerStartedAt == nil { resumeActiveTask() }
+        if let slot = focusSlot(for: id) {
+            if requestedSlot == nil || requestedSlot == slot { resumeTask(id) }
             return
         }
 
-        pauseActiveTask()
-        activeTaskID = id
-        timerAccumulatedSeconds = task.actualSeconds
-        timerStartedAt = nowProvider()
+        guard let slot = requestedSlot ?? focusSlots.firstIndex(where: { $0 == nil }),
+              focusSlots.indices.contains(slot), focusSlots[slot] == nil else { return }
+        focusSlots[slot] = FocusSession(taskID: id, startedAt: nowProvider())
         save()
 
         scheduleEstimateReminder(for: task)
@@ -520,44 +532,43 @@ final class AppStore: ObservableObject {
         }
     }
 
-    func elapsedSeconds(at now: Date? = nil) -> Int {
-        guard let timerStartedAt else { return timerAccumulatedSeconds }
-        let current = now ?? nowProvider()
-        return timerAccumulatedSeconds + max(0, Int(current.timeIntervalSince(timerStartedAt)))
+    func elapsedSeconds(for task: TaskItem, at now: Date? = nil) -> Int {
+        let accumulated = max(0, task.actualSeconds)
+        guard let slot = focusSlot(for: task.id), let startedAt = focusSlots[slot]?.startedAt else {
+            return accumulated
+        }
+        return accumulated + max(0, Int((now ?? nowProvider()).timeIntervalSince(startedAt)))
     }
 
-    func pauseActiveTask() {
-        guard let activeTaskID else { return }
-        let elapsed = elapsedSeconds()
-        timerAccumulatedSeconds = elapsed
-        if let index = tasks.firstIndex(where: { $0.id == activeTaskID }) {
-            tasks[index].actualSeconds = elapsed
-        }
-        timerStartedAt = nil
-        notificationManager.cancelEstimateReminder(taskID: activeTaskID)
+    func pauseTask(_ id: UUID) {
+        guard let slot = focusSlot(for: id), focusSlots[slot]?.startedAt != nil,
+              let index = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[index].actualSeconds = elapsedSeconds(for: tasks[index])
+        focusSlots[slot]?.startedAt = nil
+        notificationManager.cancelEstimateReminder(taskID: id)
         save()
     }
 
-    func resumeActiveTask() {
-        guard let activeTaskID, timerStartedAt == nil,
-              let task = tasks.first(where: { $0.id == activeTaskID }) else { return }
-        timerStartedAt = nowProvider()
+    func resumeTask(_ id: UUID) {
+        guard let slot = focusSlot(for: id), focusSlots[slot]?.startedAt == nil,
+              let task = tasks.first(where: { $0.id == id && !$0.isCompleted }) else { return }
+        focusSlots[slot]?.startedAt = nowProvider()
         scheduleEstimateReminder(for: task)
         save()
     }
 
-    func finishActiveTask() {
-        guard let activeTaskID,
-              let index = tasks.firstIndex(where: { $0.id == activeTaskID }) else { return }
-        let elapsed = elapsedSeconds()
-        notificationManager.cancelEstimateReminder(taskID: activeTaskID)
-        tasks[index].actualSeconds = elapsed
-        tasks[index].isCompleted = true
-        tasks[index].completedAt = nowProvider()
-        self.activeTaskID = nil
-        timerStartedAt = nil
-        timerAccumulatedSeconds = 0
+    func stopTask(_ id: UUID) {
+        guard let index = tasks.firstIndex(where: { $0.id == id }), focusSlot(for: id) != nil else { return }
+        releaseFocusSlot(for: index, at: nowProvider())
         save()
+    }
+
+    private func releaseFocusSlot(for taskIndex: Int, at now: Date) {
+        let task = tasks[taskIndex]
+        guard let slot = focusSlot(for: task.id) else { return }
+        tasks[taskIndex].actualSeconds = elapsedSeconds(for: task, at: now)
+        focusSlots[slot] = nil
+        notificationManager.cancelEstimateReminder(taskID: task.id)
     }
 
     func addMeeting(title: String, startDate: Date, durationMinutes: Int, location: String) {
@@ -586,18 +597,28 @@ final class AppStore: ObservableObject {
         let now = nowProvider()
         let today = now.startOfLocalDay
         guard review(on: today) == nil else { return false }
-        reviews.append(DailyReview(date: today, note: note, savedAt: now))
-
-        let incomplete = tasks(on: today).filter { !$0.isCompleted }
-        switch settings.carryOverPolicy {
-        case .manual:
-            break
-        case .tomorrow:
-            incomplete.forEach { moveTask($0.id, to: today.addingDays(1)) }
-        case .backlog:
-            incomplete.forEach { moveTask($0.id, to: nil) }
+        var state = persistedState
+        state.reviews.append(DailyReview(date: today, note: note, savedAt: now))
+        let assignedIDs = Set(focusSlots.compactMap { $0?.taskID })
+        for index in state.tasks.indices {
+            let task = state.tasks[index]
+            if assignedIDs.contains(task.id) {
+                state.tasks[index].actualSeconds = elapsedSeconds(for: task, at: now)
+            }
+            guard !task.isCompleted, task.scheduledDate?.startOfLocalDay == today else { continue }
+            switch settings.carryOverPolicy {
+            case .manual: break
+            case .tomorrow: state.tasks[index].scheduledDate = today.addingDays(1)
+            case .backlog: state.tasks[index].scheduledDate = nil
+            }
         }
-        save()
+        let emptySlots = Array<FocusSession?>(repeating: nil, count: focusSlots.count)
+        state.focusSlots = emptySlots
+        guard persist(state) else { return false }
+        tasks = state.tasks
+        reviews = state.reviews
+        focusSlots = emptySlots
+        for id in assignedIDs { notificationManager.cancelEstimateReminder(taskID: id) }
         return true
     }
 
@@ -703,7 +724,11 @@ final class AppStore: ObservableObject {
         let now = referenceDate ?? nowProvider()
         let pending = tasks(on: now).filter { !$0.isCompleted }
         guard !pending.isEmpty else { return .noPendingTasks }
-        if timerStartedAt != nil, activeTask != nil { return .focusInProgress }
+        let candidates = pending.filter { task in
+            if let slot = focusSlot(for: task.id) { return focusSlots[slot]?.startedAt == nil }
+            return hasEmptyFocusSlot
+        }
+        if candidates.isEmpty { return hasEmptyFocusSlot ? .focusInProgress : .focusSlotsFull }
 
         // Include meetings already underway, even if they started the previous day.
         if meetings.contains(where: {
@@ -719,7 +744,7 @@ final class AppStore: ObservableObject {
         let history = estimateHistory()
         var best: (task: TaskItem, minutes: Int, reason: String)?
 
-        for task in pending {
+        for task in candidates {
             let estimate = historicalEstimate(title: task.title, category: task.category, history: history)
                 ?? EstimateSuggestion(minutes: max(5, task.estimatedMinutes), reason: "使用计划中的预计用时")
             let spentSeconds = max(0, task.actualSeconds)
@@ -785,37 +810,59 @@ final class AppStore: ObservableObject {
             templates = state.templates
             reviews = state.reviews
             settings = state.settings
-            activeTaskID = state.activeTaskID
-            timerStartedAt = state.timerStartedAt
-            timerAccumulatedSeconds = state.timerAccumulatedSeconds
+            if let savedSlots = state.focusSlots {
+                let pendingIDs = Set(tasks.filter { !$0.isCompleted }.map(\.id))
+                var seen: Set<UUID> = []
+                focusSlots = savedSlots.map { session in
+                    guard let session, pendingIDs.contains(session.taskID), seen.insert(session.taskID).inserted else {
+                        return nil
+                    }
+                    return session
+                }
+                while focusSlots.count < Self.defaultFocusSlotCount { focusSlots.append(nil) }
+            } else if let id = state.activeTaskID,
+                      let index = tasks.firstIndex(where: { $0.id == id && !$0.isCompleted }) {
+                tasks[index].actualSeconds = max(0, state.timerAccumulatedSeconds)
+                focusSlots[0] = FocusSession(taskID: id, startedAt: state.timerStartedAt)
+            }
         } catch {
             recoverFromUnreadableData()
         }
     }
 
-    private func save() {
-        guard !persistenceBlocked else { return }
-        let state = PersistedState(
+    private var persistedState: PersistedState {
+        PersistedState(
             tasks: tasks,
             meetings: meetings,
             templates: templates,
             reviews: reviews,
             settings: settings,
-            activeTaskID: activeTaskID,
-            timerStartedAt: timerStartedAt,
-            timerAccumulatedSeconds: timerAccumulatedSeconds
+            activeTaskID: nil,
+            timerStartedAt: nil,
+            timerAccumulatedSeconds: 0,
+            focusSlots: focusSlots
         )
+    }
+
+    private func save() {
+        _ = persist(persistedState)
+    }
+
+    private func persist(_ state: PersistedState) -> Bool {
+        guard !persistenceBlocked else { return false }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         do {
             let data = try encoder.encode(state)
             try data.write(to: dataURL, options: .atomic)
+            return true
         } catch {
             persistenceIssue = PersistenceIssue(
                 title: "数据保存失败",
                 message: "请检查磁盘空间或文件权限。错误：\(error.localizedDescription)"
             )
+            return false
         }
     }
 
@@ -842,7 +889,7 @@ final class AppStore: ObservableObject {
     }
 
     private func scheduleEstimateReminder(for task: TaskItem) {
-        let remaining = task.estimatedMinutes * 60 - elapsedSeconds()
+        let remaining = task.estimatedMinutes * 60 - elapsedSeconds(for: task)
         if remaining > 1 {
             notificationManager.scheduleEstimateReached(
                 taskID: task.id,
@@ -881,8 +928,6 @@ final class AppStore: ObservableObject {
         meetings = []
         reviews = []
         settings = AppSettings()
-        activeTaskID = nil
-        timerStartedAt = nil
-        timerAccumulatedSeconds = 0
+        focusSlots = Array(repeating: nil, count: Self.defaultFocusSlotCount)
     }
 }

@@ -6,7 +6,9 @@ import Foundation
 struct AppStoreChecks {
     static func main() {
         var suite = CheckSuite()
-        suite.run("切换任务保留双方用时", suite.checkTimerSwitching)
+        suite.run("并行计时可独立暂停、释放与扩展槽位", suite.checkParallelTimers)
+        suite.run("旧计时记录迁移并保留多个槽位", suite.checkFocusSlotMigration)
+        suite.run("复盘释放计时槽位并保留未完成任务", suite.checkReviewStopsParallelTimers)
         suite.run("编辑活动任务重排提醒", suite.checkReminderRescheduling)
         suite.run("所有未完成任务都有看板入口", suite.checkBoardVisibility)
         suite.run("损坏数据先备份再恢复", suite.checkCorruptDataRecovery)
@@ -40,7 +42,7 @@ struct AppStoreChecks {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 29 checks")
+        print("PASSED: 31 checks")
     }
 }
 
@@ -58,24 +60,104 @@ private struct CheckSuite {
         }
     }
 
-    func checkTimerSwitching() throws {
+    func checkParallelTimers() throws {
         let context = try TestContext()
         defer { context.cleanUp() }
-
-        context.store.addTask(title: "任务 A", category: "测试", estimatedMinutes: 30, date: context.clock.now)
-        context.store.addTask(title: "任务 B", category: "测试", estimatedMinutes: 30, date: context.clock.now)
-        let first = try require(context.store.tasks.first(where: { $0.title == "任务 A" }), "找不到任务 A")
-        let second = try require(context.store.tasks.first(where: { $0.title == "任务 B" }), "找不到任务 B")
-
-        context.store.startTask(first.id)
+        let store = context.store
+        let first = store.addTask(title: "任务 A", category: "测试", estimatedMinutes: 30, date: context.clock.now)
+        let second = store.addTask(title: "任务 B", category: "测试", estimatedMinutes: 30, date: context.clock.now)
+        let third = store.addTask(title: "任务 C", category: "测试", estimatedMinutes: 30, date: context.clock.now)
+        try expect(store.focusSlots.count == 2, "默认未显示两个槽位")
+        store.startTask(first.id, in: 1)
         context.clock.advance(seconds: 120)
-        context.store.startTask(second.id)
-        try expect(context.store.tasks.first(where: { $0.id == first.id })?.actualSeconds == 120, "任务 A 未保存 120 秒")
-
+        store.startTask(second.id)
+        store.startTask(third.id)
+        try expect(store.focusSlots[0]?.taskID == second.id && store.focusSlots[1]?.taskID == first.id, "满槽启动替换了原来的任务")
         context.clock.advance(seconds: 60)
-        context.store.startTask(first.id)
-        try expect(context.store.tasks.first(where: { $0.id == second.id })?.actualSeconds == 60, "任务 B 未保存 60 秒")
-        try expect(context.store.elapsedSeconds() == 120, "返回任务 A 后累计时间不正确")
+        try expect(store.elapsedSeconds(for: first) == 180 && store.elapsedSeconds(for: second) == 60, "两个槽位未独立计时")
+
+        store.pauseTask(first.id)
+        context.clock.advance(seconds: 60)
+        let paused = try require(store.tasks.first(where: { $0.id == first.id }), "暂停后丢失了任务")
+        try expect(store.elapsedSeconds(for: paused) == 180 && store.elapsedSeconds(for: second) == 120, "暂停影响了另一项任务")
+        try expect(context.notifications.cancelled == [first.id], "暂停取消了错误的提醒")
+
+        store.addFocusSlot()
+        store.startTask(third.id, in: 2)
+        store.resumeTask(first.id)
+        context.clock.advance(seconds: 60)
+        store.stopTask(first.id)
+        _ = store.moveTask(second.id, to: .todayCompleted)
+        try expect(store.focusSlots[0] == nil && store.focusSlots[1] == nil, "移出或看板完成没有释放槽位")
+        try expect(store.tasks.first(where: { $0.id == first.id && !$0.isCompleted })?.actualSeconds == 240, "移出任务没有保留已计时间")
+        try expect(store.tasks.first(where: { $0.id == second.id && $0.isCompleted })?.actualSeconds == 180, "看板完成没有保留累计时间")
+        try expect(store.elapsedSeconds(for: third) == 60, "槽位释放影响了其他计时")
+        store.removeEmptyFocusSlot(1)
+        try expect(store.focusSlots.count == 2 && store.focusSlot(for: third.id) == 1, "移除空槽后丢失运行中的任务")
+        store.deleteTask(third.id)
+        try expect(store.focusSlots.allSatisfy { $0 == nil }, "删除任务没有释放槽位")
+    }
+
+    func checkFocusSlotMigration() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+        let now = context.clock.now
+        let first = TaskItem(title: "旧计时", category: "测试", estimatedMinutes: 30, scheduledDate: now.startOfLocalDay)
+        let second = TaskItem(title: "新计时", category: "测试", estimatedMinutes: 30, scheduledDate: now.startOfLocalDay)
+        let state = PersistedState(
+            tasks: [first, second], meetings: [], templates: [], reviews: [], settings: AppSettings(),
+            activeTaskID: first.id, timerStartedAt: now.addingTimeInterval(-60), timerAccumulatedSeconds: 120
+        )
+        let dataURL = context.directory.appendingPathComponent("data.json")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(state).write(to: dataURL)
+        let store = AppStore(dataURL: dataURL, notificationManager: context.notifications, nowProvider: { context.clock.now })
+        let migrated = try require(store.tasks.first, "未读取旧任务")
+        try expect(store.focusSlot(for: first.id) == 0 && store.elapsedSeconds(for: migrated) == 180, "旧活动计时迁移失败")
+        store.addFocusSlot()
+        store.startTask(second.id, in: 2)
+        store.pauseTask(first.id)
+        context.clock.advance(seconds: 60)
+
+        let reopened = AppStore(dataURL: dataURL, notificationManager: context.notifications, nowProvider: { context.clock.now })
+        let restored = try require(reopened.tasks.first, "重启后未读取任务")
+        try expect(reopened.focusSlots.count == 3 && reopened.focusSlots[1] == nil, "重启后槽位数量或位置变化")
+        try expect(reopened.focusSlots[0]?.startedAt == nil && reopened.elapsedSeconds(for: restored) == 180, "重启后暂停任务继续计时")
+        try expect(reopened.focusSlot(for: second.id) == 2 && reopened.elapsedSeconds(for: second) == 60, "重启后运行中的任务未恢复")
+    }
+
+    func checkReviewStopsParallelTimers() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+        let store = context.store
+        let now = context.clock.now
+        let first = store.addTask(title: "任务 A", category: "测试", estimatedMinutes: 30, date: now)
+        let second = store.addTask(title: "任务 B", category: "测试", estimatedMinutes: 30, date: now)
+        var settings = store.settings
+        settings.carryOverPolicy = .tomorrow
+        store.updateSettings(settings)
+        store.startTask(first.id)
+        store.startTask(second.id)
+        context.clock.advance(seconds: 60)
+        store.pauseTask(second.id)
+        context.clock.advance(seconds: 60)
+
+        let dataURL = context.directory.appendingPathComponent("data.json")
+        let backupURL = context.directory.appendingPathComponent("saved-data.json")
+        try FileManager.default.moveItem(at: dataURL, to: backupURL)
+        try FileManager.default.createDirectory(at: dataURL, withIntermediateDirectories: false)
+        try expect(!store.saveReview(note: "保存失败"), "写入失败仍返回成功")
+        try expect(!store.isDayFinalized(now) && store.focusSlot(for: first.id) != nil, "写入失败仍封存当天或释放计时")
+        try FileManager.default.removeItem(at: dataURL)
+        try FileManager.default.moveItem(at: backupURL, to: dataURL)
+
+        try expect(store.saveReview(note: "明天继续"), "复盘没有保存")
+        let deferred = store.tasks(on: now.addingDays(1))
+        try expect(store.focusSlots.allSatisfy { $0 == nil }, "封存后槽位仍被占用")
+        try expect(deferred.count == 2 && deferred.allSatisfy { !$0.isCompleted }, "封存把尚未完成的任务标记为已完成")
+        try expect(deferred.first(where: { $0.id == first.id })?.actualSeconds == 120, "复盘丢失了运行中的计时")
+        try expect(deferred.first(where: { $0.id == second.id })?.actualSeconds == 60, "复盘丢失了暂停的计时")
     }
 
     func checkReminderRescheduling() throws {
@@ -204,8 +286,12 @@ private struct CheckSuite {
             throw CheckError("会议进行时仍然推荐任务")
         }
         store.startTask(shortTask.id)
-        if case .focusInProgress = store.recommendNextTask(at: start) {} else {
-            throw CheckError("已有运行中的计时仍然推荐切换任务")
+        if case .task(let task, 25, _, 25) = store.recommendNextTask(at: start) {
+            try expect(task.id == longTask.id, "有空槽位时没有推荐另一项待办")
+        } else { throw CheckError("有空槽位时不应阻止推荐") }
+        store.startTask(longTask.id)
+        if case .focusSlotsFull = store.recommendNextTask(at: start) {} else {
+            throw CheckError("槽位满时仍然推荐开启新的计时")
         }
     }
 
@@ -789,12 +875,13 @@ private final class MutableIdleProvider: UserIdleTimeProviding {
 private final class NotificationRecorder: TaskNotificationManaging, @unchecked Sendable {
     struct Scheduled { let seconds: Int }
     private(set) var scheduled: [Scheduled] = []
+    private(set) var cancelled: [UUID] = []
 
     func sendFocusReminder(taskTitle: String) {}
     func scheduleEstimateReached(taskID: UUID, taskTitle: String, after seconds: Int) {
         scheduled.append(Scheduled(seconds: seconds))
     }
-    func cancelEstimateReminder(taskID: UUID) {}
+    func cancelEstimateReminder(taskID: UUID) { cancelled.append(taskID) }
 }
 
 private final class WorktimeNotificationRecorder: WorktimeNotificationManaging, @unchecked Sendable {
