@@ -51,6 +51,7 @@ final class AppStore: ObservableObject {
     }
 
     var hasEmptyFocusSlot: Bool { focusSlots.contains { $0 == nil } }
+    var hasRunningFocusTasks: Bool { focusSlots.contains { $0?.startedAt != nil } }
 
     func focusSlot(for taskID: UUID) -> Int? {
         focusSlots.firstIndex { $0?.taskID == taskID }
@@ -551,12 +552,26 @@ final class AppStore: ObservableObject {
     }
 
     func pauseTask(_ id: UUID) {
-        guard let slot = focusSlot(for: id), focusSlots[slot]?.startedAt != nil,
-              let index = tasks.firstIndex(where: { $0.id == id }) else { return }
-        tasks[index].actualSeconds = elapsedSeconds(for: tasks[index])
-        focusSlots[slot]?.startedAt = nil
-        notificationManager.cancelEstimateReminder(taskID: id)
-        save()
+        guard let slot = focusSlot(for: id) else { return }
+        pauseFocusSlots([slot])
+    }
+
+    func pauseAllFocusTasks() {
+        pauseFocusSlots(focusSlots.indices)
+    }
+
+    private func pauseFocusSlots(_ slots: some Sequence<Int>) {
+        let now = nowProvider()
+        var didPause = false
+        for slot in slots {
+            guard let session = focusSlots[slot], session.startedAt != nil,
+                  let index = tasks.firstIndex(where: { $0.id == session.taskID }) else { continue }
+            tasks[index].actualSeconds = elapsedSeconds(for: tasks[index], at: now)
+            focusSlots[slot]?.startedAt = nil
+            notificationManager.cancelEstimateReminder(taskID: session.taskID)
+            didPause = true
+        }
+        if didPause { save() }
     }
 
     func resumeTask(_ id: UUID) {

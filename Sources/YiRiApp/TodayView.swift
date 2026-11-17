@@ -103,6 +103,13 @@ struct TodayView: View {
                     )
                     Spacer()
                     Button {
+                        store.pauseAllFocusTasks()
+                    } label: {
+                        Label("全部暂停", systemImage: "pause.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!store.hasRunningFocusTasks)
+                    Button {
                         store.addFocusSlot()
                     } label: {
                         Label("添加槽位", systemImage: "plus")
@@ -452,6 +459,8 @@ private struct TodayTaskRow: View {
     let onAddSubtask: () -> Void
 
     var body: some View {
+        let assignedSlot = store.focusSlot(for: task.id)
+        let isRunning = assignedSlot.flatMap { store.focusSlots[$0]?.startedAt } != nil
         HStack(spacing: 12) {
             Toggle("", isOn: Binding(
                 get: { task.isCompleted },
@@ -460,7 +469,7 @@ private struct TodayTaskRow: View {
             .toggleStyle(.checkbox)
             .labelsHidden()
 
-            if !task.isCompleted, store.focusSlot(for: task.id) == nil {
+            if !task.isCompleted, assignedSlot == nil {
                 taskLabel
                     .draggable(FocusTaskDrag(taskID: task.id)) {
                         Label(task.title, systemImage: "timer")
@@ -471,10 +480,18 @@ private struct TodayTaskRow: View {
             } else {
                 taskLabel
             }
-            if let slot = store.focusSlot(for: task.id) {
-                Text("槽位 \(slot + 1) · \(store.focusSlots[slot]?.startedAt == nil ? "已暂停" : "专注中")")
-                    .font(.caption)
-                    .foregroundStyle(YiRiTheme.accent)
+            if let assignedSlot {
+                Label("槽位 \(assignedSlot + 1) · \(isRunning ? "专注中" : "已暂停")",
+                      systemImage: isRunning ? "timer" : "pause.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .fixedSize()
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(YiRiTheme.panel, in: Capsule())
+                    .overlay {
+                        Capsule().strokeBorder(isRunning ? YiRiTheme.accent.opacity(0.55) : YiRiTheme.border)
+                    }
             } else if !task.isCompleted {
                 Button("开始") {
                     store.startTask(task.id)
@@ -503,7 +520,20 @@ private struct TodayTaskRow: View {
             .menuIndicator(.hidden)
             .frame(width: 28)
         }
+        .padding(.horizontal, 10)
         .padding(.vertical, 10)
+        .background {
+            if assignedSlot != nil {
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(isRunning ? YiRiTheme.accentSoft : YiRiTheme.warm)
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(isRunning ? YiRiTheme.accent : Color.secondary.opacity(0.55))
+                            .frame(width: 3)
+                            .padding(.vertical, 8)
+                    }
+            }
+        }
         .contentShape(Rectangle())
         .contextMenu {
             if task.parentTaskID == nil {
