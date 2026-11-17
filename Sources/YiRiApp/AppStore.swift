@@ -52,6 +52,12 @@ final class AppStore: ObservableObject {
 
     var hasEmptyFocusSlot: Bool { focusSlots.contains { $0 == nil } }
     var hasRunningFocusTasks: Bool { focusSlots.contains { $0?.startedAt != nil } }
+    var hasPausedFocusTasks: Bool {
+        focusSlots.contains { session in
+            guard let session else { return false }
+            return session.startedAt == nil
+        }
+    }
 
     func focusSlot(for taskID: UUID) -> Int? {
         focusSlots.firstIndex { $0?.taskID == taskID }
@@ -575,11 +581,25 @@ final class AppStore: ObservableObject {
     }
 
     func resumeTask(_ id: UUID) {
-        guard let slot = focusSlot(for: id), focusSlots[slot]?.startedAt == nil,
-              let task = tasks.first(where: { $0.id == id && !$0.isCompleted }) else { return }
-        focusSlots[slot]?.startedAt = nowProvider()
-        scheduleEstimateReminder(for: task)
-        save()
+        guard let slot = focusSlot(for: id) else { return }
+        resumeFocusSlots([slot])
+    }
+
+    func resumeAllFocusTasks() {
+        resumeFocusSlots(focusSlots.indices)
+    }
+
+    private func resumeFocusSlots(_ slots: some Sequence<Int>) {
+        let now = nowProvider()
+        var didResume = false
+        for slot in slots {
+            guard let session = focusSlots[slot], session.startedAt == nil,
+                  let task = tasks.first(where: { $0.id == session.taskID && !$0.isCompleted }) else { continue }
+            focusSlots[slot]?.startedAt = now
+            scheduleEstimateReminder(for: task, at: now)
+            didResume = true
+        }
+        if didResume { save() }
     }
 
     func stopTask(_ id: UUID) {
@@ -923,8 +943,8 @@ final class AppStore: ObservableObject {
         }
     }
 
-    private func scheduleEstimateReminder(for task: TaskItem) {
-        let remaining = task.estimatedMinutes * 60 - elapsedSeconds(for: task)
+    private func scheduleEstimateReminder(for task: TaskItem, at now: Date? = nil) {
+        let remaining = task.estimatedMinutes * 60 - elapsedSeconds(for: task, at: now)
         if remaining > 1 {
             notificationManager.scheduleEstimateReached(
                 taskID: task.id,

@@ -8,6 +8,7 @@ struct AppStoreChecks {
         var suite = CheckSuite()
         suite.run("并行计时可独立暂停、释放与扩展槽位", suite.checkParallelTimers)
         suite.run("全部暂停保存各任务计时并保留槽位", suite.checkPauseAllFocusTasks)
+        suite.run("全部恢复接续已暂停计时和剩余提醒", suite.checkResumeAllFocusTasks)
         suite.run("全部移出清空槽位并保留待办用时", suite.checkStopAllFocusTasks)
         suite.run("今日任务拖放只在指定空槽启动有效待办", suite.checkStartingTodayTaskInSlot)
         suite.run("旧计时记录迁移并保留多个槽位", suite.checkFocusSlotMigration)
@@ -45,7 +46,7 @@ struct AppStoreChecks {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 34 checks")
+        print("PASSED: 35 checks")
     }
 }
 
@@ -139,6 +140,42 @@ private struct CheckSuite {
         let resumed = try require(reopened.tasks.first { $0.id == second.id }, "找不到继续计时的任务")
         try expect(reopened.elapsedSeconds(for: resumed) == 90, "继续后未从已累计的时间开始")
         try expect(reopened.focusSlots[0]?.startedAt == nil, "继续一项任务时重启了其他计时")
+    }
+
+    func checkResumeAllFocusTasks() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+        let store = context.store
+        let today = context.clock.now
+        let first = store.addTask(title: "先开始", category: "测试", estimatedMinutes: 10, date: today)
+        let second = store.addTask(title: "后开始", category: "测试", estimatedMinutes: 10, date: today)
+        let running = store.addTask(title: "仍在计时", category: "测试", estimatedMinutes: 10, date: today)
+        store.addFocusSlot()
+        store.addFocusSlot()
+        try expect(!store.hasPausedFocusTasks, "空槽位被识别为暂停")
+        store.startTask(first.id, in: 0)
+        context.clock.advance(seconds: 60)
+        store.startTask(second.id, in: 1)
+        context.clock.advance(seconds: 60)
+        store.pauseAllFocusTasks()
+        store.startTask(running.id, in: 2)
+        let runningStart = context.clock.now
+        context.clock.advance(seconds: 90)
+
+        try expect(store.hasPausedFocusTasks, "没有识别出暂停的任务")
+        store.resumeAllFocusTasks()
+        let restoreTime = context.clock.now
+        try expect(!store.hasPausedFocusTasks, "恢复后仍有暂停任务")
+        try expect(store.focusSlots.map { $0?.startedAt } == [restoreTime, restoreTime, runningStart, nil], "恢复更改了正在计时或空闲的槽位")
+        try expect(context.notifications.scheduled.suffix(2).map(\.seconds) == [480, 540], "恢复后没有按各自剩余用时设置提醒")
+        let reminderCount = context.notifications.scheduled.count
+        store.resumeAllFocusTasks()
+        try expect(context.notifications.scheduled.count == reminderCount, "重复恢复重设了运行中的提醒")
+
+        context.clock.advance(seconds: 30)
+        let reopened = AppStore(dataURL: context.directory.appendingPathComponent("data.json"),
+                                notificationManager: context.notifications, nowProvider: { context.clock.now })
+        try expect(reopened.tasks.map { reopened.elapsedSeconds(for: $0) } == [150, 90, 120], "重开后累计用时算错或计入了暂停时段")
     }
 
     func checkStopAllFocusTasks() throws {

@@ -111,6 +111,14 @@ struct TodayView: View {
                     .buttonStyle(.bordered)
                     .disabled(!store.hasRunningFocusTasks)
                     Button {
+                        store.resumeAllFocusTasks()
+                    } label: {
+                        Label("全部恢复", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!store.hasPausedFocusTasks)
+                    .help("继续所有已暂停的槽位计时")
+                    Button {
                         store.stopAllFocusTasks()
                     } label: {
                         Label("全部移出", systemImage: "eject")
