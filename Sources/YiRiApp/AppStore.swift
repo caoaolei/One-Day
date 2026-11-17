@@ -588,6 +588,16 @@ final class AppStore: ObservableObject {
         save()
     }
 
+    func stopAllFocusTasks() {
+        let assignedIDs = Set(focusSlots.compactMap { $0?.taskID })
+        guard !assignedIDs.isEmpty else { return }
+        let now = nowProvider()
+        for index in tasks.indices where assignedIDs.contains(tasks[index].id) {
+            releaseFocusSlot(for: index, at: now)
+        }
+        save()
+    }
+
     private func releaseFocusSlot(for taskIndex: Int, at now: Date) {
         let task = tasks[taskIndex]
         guard let slot = focusSlot(for: task.id) else { return }

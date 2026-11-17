@@ -94,12 +94,13 @@ struct TodayView: View {
 
     private var focusPanel: some View {
         let availableTasks = todayTasks.filter { !$0.isCompleted && store.focusSlot(for: $0.id) == nil }
+        let occupiedCount = store.focusSlots.compactMap { $0 }.count
         return Panel {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     SectionHeader(
                         title: "专注槽位",
-                        subtitle: "\(store.focusSlots.compactMap { $0 }.count) / \(store.focusSlots.count) 已占用"
+                        subtitle: "\(occupiedCount) / \(store.focusSlots.count) 已占用"
                     )
                     Spacer()
                     Button {
@@ -109,6 +110,14 @@ struct TodayView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(!store.hasRunningFocusTasks)
+                    Button {
+                        store.stopAllFocusTasks()
+                    } label: {
+                        Label("全部移出", systemImage: "eject")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(occupiedCount == 0)
+                    .help("移出槽位中的全部任务，保留已计时间")
                     Button {
                         store.addFocusSlot()
                     } label: {
@@ -333,14 +342,17 @@ private struct EmptyFocusSlotCard: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 if store.focusSlots.count > AppStore.defaultFocusSlotCount {
-                    Button {
+                    Button(role: .destructive) {
                         store.removeEmptyFocusSlot(slot)
                     } label: {
-                        Image(systemName: "xmark")
+                        Label("删除槽位", systemImage: "trash")
+                            .font(.subheadline.weight(.medium))
                     }
-                    .buttonStyle(.borderless)
-                    .help("移除空闲槽位")
-                    .accessibilityLabel("移除槽位 \(slot + 1)")
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .fixedSize()
+                    .help("删除此空槽位")
+                    .accessibilityLabel("删除槽位 \(slot + 1)")
                 }
             }
             HStack(spacing: 10) {
