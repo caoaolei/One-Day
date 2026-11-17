@@ -7,6 +7,7 @@ struct AppStoreChecks {
     static func main() {
         var suite = CheckSuite()
         suite.run("并行计时可独立暂停、释放与扩展槽位", suite.checkParallelTimers)
+        suite.run("今日任务拖放只在指定空槽启动有效待办", suite.checkStartingTodayTaskInSlot)
         suite.run("旧计时记录迁移并保留多个槽位", suite.checkFocusSlotMigration)
         suite.run("复盘释放计时槽位并保留未完成任务", suite.checkReviewStopsParallelTimers)
         suite.run("编辑活动任务重排提醒", suite.checkReminderRescheduling)
@@ -42,7 +43,7 @@ struct AppStoreChecks {
             print("FAILED: \(suite.failureCount) check(s)")
             exit(1)
         }
-        print("PASSED: 31 checks")
+        print("PASSED: 32 checks")
     }
 }
 
@@ -96,6 +97,25 @@ private struct CheckSuite {
         try expect(store.focusSlots.count == 2 && store.focusSlot(for: third.id) == 1, "移除空槽后丢失运行中的任务")
         store.deleteTask(third.id)
         try expect(store.focusSlots.allSatisfy { $0 == nil }, "删除任务没有释放槽位")
+    }
+
+    func checkStartingTodayTaskInSlot() throws {
+        let context = try TestContext()
+        defer { context.cleanUp() }
+        let store = context.store
+        let today = context.clock.now
+        let first = store.addTask(title: "今日任务 A", category: "测试", estimatedMinutes: 30, date: today)
+        let second = store.addTask(title: "今日任务 B", category: "测试", estimatedMinutes: 30, date: today)
+        let future = store.addTask(title: "明日任务", category: "测试", estimatedMinutes: 30, date: today.addingDays(1))
+
+        try expect(store.startTodayTask(first.id, in: 1), "应能拖到指定空槽位")
+        try expect(store.focusSlots[1]?.startedAt == today && store.focusSlots[0] == nil, "未从所选槽位开始计时")
+        try expect(!store.startTodayTask(second.id, in: 1), "不应替换已占用的槽位")
+        try expect(!store.startTodayTask(first.id, in: 0), "同一个任务不应占多个槽位")
+        try expect(!store.startTodayTask(future.id, in: 0), "不应开始明天的任务")
+        store.setCompleted(second.id, completed: true)
+        try expect(!store.startTodayTask(second.id, in: 0), "拖动中完成的任务不应再开始")
+        try expect(store.focusSlots[1]?.taskID == first.id && store.focusSlots[0] == nil, "无效拖放改动了槽位")
     }
 
     func checkFocusSlotMigration() throws {

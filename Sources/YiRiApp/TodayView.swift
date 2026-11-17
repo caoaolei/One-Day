@@ -1,4 +1,14 @@
+import CoreTransferable
 import SwiftUI
+import UniformTypeIdentifiers
+
+private struct FocusTaskDrag: Codable, Transferable {
+    let taskID: UUID
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: UTType(exportedAs: "com.local.yiri.focus-task"))
+    }
+}
 
 struct TodayView: View {
     @EnvironmentObject private var store: AppStore
@@ -105,32 +115,7 @@ struct TodayView: View {
                            let task = store.tasks.first(where: { $0.id == session.taskID }) {
                             FocusTimerCard(task: task, slot: slot, isRunning: session.startedAt != nil)
                         } else {
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack {
-                                    Label("槽位 \(slot + 1) · 空闲", systemImage: "timer")
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                    if store.focusSlots.count > AppStore.defaultFocusSlotCount {
-                                        Button {
-                                            store.removeEmptyFocusSlot(slot)
-                                        } label: {
-                                            Image(systemName: "xmark")
-                                        }
-                                        .buttonStyle(.borderless)
-                                        .help("移除空闲槽位")
-                                        .accessibilityLabel("移除槽位 \(slot + 1)")
-                                    }
-                                }
-                                Menu("选择任务") {
-                                    ForEach(availableTasks) { task in
-                                        Button(task.title) { store.startTask(task.id, in: slot) }
-                                    }
-                                }
-                                .fixedSize()
-                                .disabled(availableTasks.isEmpty)
-                            }
-                            .font(.caption)
-                            .focusSlotStyle(background: YiRiTheme.inputBackground)
+                            EmptyFocusSlotCard(slot: slot, availableTasks: availableTasks)
                         }
                     }
                 }
@@ -328,6 +313,60 @@ struct TodayView: View {
     }
 }
 
+private struct EmptyFocusSlotCard: View {
+    @EnvironmentObject private var store: AppStore
+    @State private var isDropTargeted = false
+    let slot: Int
+    let availableTasks: [TaskItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("槽位 \(slot + 1) · 空闲", systemImage: "timer")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if store.focusSlots.count > AppStore.defaultFocusSlotCount {
+                    Button {
+                        store.removeEmptyFocusSlot(slot)
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("移除空闲槽位")
+                    .accessibilityLabel("移除槽位 \(slot + 1)")
+                }
+            }
+            HStack(spacing: 10) {
+                Text(isDropTargeted ? "松手开始计时" : "拖入今日任务")
+                    .foregroundStyle(isDropTargeted ? YiRiTheme.accent : Color.secondary)
+                Spacer(minLength: 0)
+                Menu("选择任务") {
+                    ForEach(availableTasks) { task in
+                        Button(task.title) { store.startTodayTask(task.id, in: slot) }
+                    }
+                }
+                .fixedSize()
+                .disabled(availableTasks.isEmpty)
+            }
+        }
+        .font(.caption)
+        .focusSlotStyle(background: isDropTargeted ? YiRiTheme.accentSoft : YiRiTheme.inputBackground)
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(
+                    isDropTargeted ? YiRiTheme.accent : YiRiTheme.border,
+                    style: StrokeStyle(lineWidth: isDropTargeted ? 2 : 1, dash: [5, 4])
+                )
+                .allowsHitTesting(false)
+        }
+        .contentShape(Rectangle())
+        .dropDestination(for: FocusTaskDrag.self) { items, _ in
+            guard items.count == 1, let item = items.first else { return false }
+            return store.startTodayTask(item.taskID, in: slot)
+        } isTargeted: { isDropTargeted = $0 }
+    }
+}
+
 private struct FocusTimerCard: View {
     @EnvironmentObject private var store: AppStore
     let task: TaskItem
@@ -421,22 +460,17 @@ private struct TodayTaskRow: View {
             .toggleStyle(.checkbox)
             .labelsHidden()
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    if task.parentTaskID != nil {
-                        Image(systemName: "arrow.turn.down.right")
-                            .font(.caption2)
-                            .foregroundStyle(YiRiTheme.accent)
+            if !task.isCompleted, store.focusSlot(for: task.id) == nil {
+                taskLabel
+                    .draggable(FocusTaskDrag(taskID: task.id)) {
+                        Label(task.title, systemImage: "timer")
+                            .padding(10)
+                            .background(YiRiTheme.panel, in: RoundedRectangle(cornerRadius: 8))
                     }
-                    Text(task.title)
-                        .strikethrough(task.isCompleted)
-                        .foregroundStyle(task.isCompleted ? .secondary : .primary)
-                }
-                Text("\(task.estimatedMinutes.durationText) · \(task.category)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .accessibilityHint("可拖到空闲专注槽位开始计时")
+            } else {
+                taskLabel
             }
-            Spacer()
             if let slot = store.focusSlot(for: task.id) {
                 Text("槽位 \(slot + 1) · \(store.focusSlots[slot]?.startedAt == nil ? "已暂停" : "专注中")")
                     .font(.caption)
@@ -483,5 +517,25 @@ private struct TodayTaskRow: View {
             Divider()
             Button("删除任务", role: .destructive) { store.deleteTask(task.id) }
         }
+    }
+
+    private var taskLabel: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                if task.parentTaskID != nil {
+                    Image(systemName: "arrow.turn.down.right")
+                        .font(.caption2)
+                        .foregroundStyle(YiRiTheme.accent)
+                }
+                Text(task.title)
+                    .strikethrough(task.isCompleted)
+                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+            }
+            Text("\(task.estimatedMinutes.durationText) · \(task.category)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }

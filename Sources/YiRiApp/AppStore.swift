@@ -514,6 +514,16 @@ final class AppStore: ObservableObject {
         save()
     }
 
+    @discardableResult
+    func startTodayTask(_ id: UUID, in slot: Int) -> Bool {
+        let now = nowProvider()
+        guard focusSlots.indices.contains(slot), focusSlots[slot] == nil,
+              focusSlot(for: id) == nil, !isDayFinalized(now),
+              tasks(on: now).contains(where: { $0.id == id && !$0.isCompleted }) else { return false }
+        startTask(id, in: slot)
+        return true
+    }
+
     func startTask(_ id: UUID, in requestedSlot: Int? = nil) {
         guard let task = tasks.first(where: { $0.id == id }), !task.isCompleted else { return }
         if let slot = focusSlot(for: id) {
