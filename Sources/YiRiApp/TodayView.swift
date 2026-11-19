@@ -99,7 +99,7 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     SectionHeader(
-                        title: "专注槽位",
+                        title: "专注栏位",
                         subtitle: "\(occupiedCount) / \(store.focusSlots.count) 已占用"
                     )
                     Spacer()
@@ -117,7 +117,7 @@ struct TodayView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(!store.hasPausedFocusTasks)
-                    .help("继续所有已暂停的槽位计时")
+                    .help("继续所有已暂停的栏位计时")
                     Button {
                         store.stopAllFocusTasks()
                     } label: {
@@ -125,11 +125,11 @@ struct TodayView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(occupiedCount == 0)
-                    .help("移出槽位中的全部任务，保留已计时间")
+                    .help("移出栏位中的全部任务，保留已计时间")
                     Button {
                         store.addFocusSlot()
                     } label: {
-                        Label("添加槽位", systemImage: "plus")
+                        Label("添加栏位", systemImage: "plus")
                     }
                     .buttonStyle(.bordered)
                 }
@@ -240,8 +240,6 @@ struct TodayView: View {
                 Text("今日计划里没有待做的任务。")
             case .focusInProgress:
                 Text("今日待办都已开始计时。")
-            case .focusSlotsFull:
-                Text("槽位已满。可以完成或移出一项任务，也可以添加槽位。")
             case .meetingInProgress:
                 Text("当前有会议，会议结束后可以查看推荐。")
             case .noTaskFits(let availableMinutes):
@@ -346,21 +344,21 @@ private struct EmptyFocusSlotCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("槽位 \(slot + 1) · 空闲", systemImage: "timer")
+                Label("栏位 \(slot + 1) · 空闲", systemImage: "timer")
                     .foregroundStyle(.secondary)
                 Spacer()
                 if store.focusSlots.count > AppStore.defaultFocusSlotCount {
                     Button(role: .destructive) {
                         store.removeEmptyFocusSlot(slot)
                     } label: {
-                        Label("删除槽位", systemImage: "trash")
+                        Label("删除栏位", systemImage: "trash")
                             .font(.subheadline.weight(.medium))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
                     .fixedSize()
-                    .help("删除此空槽位")
-                    .accessibilityLabel("删除槽位 \(slot + 1)")
+                    .help("删除此空栏位")
+                    .accessibilityLabel("删除栏位 \(slot + 1)")
                 }
             }
             HStack(spacing: 10) {
@@ -405,7 +403,7 @@ private struct FocusTimerCard: View {
             let elapsed = store.elapsedSeconds(for: task, at: context.date)
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Label("槽位 \(slot + 1) · \(isRunning ? "专注中" : "已暂停")", systemImage: isRunning ? "timer" : "pause.circle")
+                    Label("栏位 \(slot + 1) · \(isRunning ? "专注中" : "已暂停")", systemImage: isRunning ? "timer" : "pause.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -415,7 +413,7 @@ private struct FocusTimerCard: View {
                         Image(systemName: "eject")
                     }
                     .buttonStyle(.borderless)
-                    .help("移出槽位并保留已计时间")
+                    .help("移出栏位并保留已计时间")
                     .accessibilityLabel("移出任务")
                 }
                 Text(task.title)
@@ -496,12 +494,12 @@ private struct TodayTaskRow: View {
                             .padding(10)
                             .background(YiRiTheme.panel, in: RoundedRectangle(cornerRadius: 8))
                     }
-                    .accessibilityHint("可拖到空闲专注槽位开始计时")
+                    .accessibilityHint("可拖到空闲专注栏位开始计时")
             } else {
                 taskLabel
             }
             if let assignedSlot {
-                Label("槽位 \(assignedSlot + 1) · \(isRunning ? "专注中" : "已暂停")",
+                Label("栏位 \(assignedSlot + 1) · \(isRunning ? "专注中" : "已暂停")",
                       systemImage: isRunning ? "timer" : "pause.circle.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
@@ -517,8 +515,7 @@ private struct TodayTaskRow: View {
                     store.startTask(task.id)
                 }
                 .buttonStyle(.bordered)
-                .disabled(!store.hasEmptyFocusSlot)
-                .help(store.hasEmptyFocusSlot ? "在空闲槽位开始计时" : "请先腾出或添加一个槽位")
+                .help("开始计时，栏位满时会自动新增栏位")
             }
             Menu {
                 if task.parentTaskID == nil {

@@ -538,6 +538,7 @@ final class AppStore: ObservableObject {
             return
         }
 
+        if requestedSlot == nil, !hasEmptyFocusSlot { focusSlots.append(nil) }
         guard let slot = requestedSlot ?? focusSlots.firstIndex(where: { $0 == nil }),
               focusSlots.indices.contains(slot), focusSlots[slot] == nil else { return }
         focusSlots[slot] = FocusSession(taskID: id, startedAt: nowProvider())
@@ -781,9 +782,9 @@ final class AppStore: ObservableObject {
         guard !pending.isEmpty else { return .noPendingTasks }
         let candidates = pending.filter { task in
             if let slot = focusSlot(for: task.id) { return focusSlots[slot]?.startedAt == nil }
-            return hasEmptyFocusSlot
+            return true
         }
-        if candidates.isEmpty { return hasEmptyFocusSlot ? .focusInProgress : .focusSlotsFull }
+        if candidates.isEmpty { return .focusInProgress }
 
         // Include meetings already underway, even if they started the previous day.
         if meetings.contains(where: {

@@ -179,7 +179,6 @@ struct EstimateSuggestion: Equatable {
 enum NextTaskRecommendation {
     case noPendingTasks
     case focusInProgress
-    case focusSlotsFull
     case meetingInProgress
     case noTaskFits(availableMinutes: Int)
     case task(TaskItem, minutes: Int, estimateReason: String, availableMinutes: Int?)
